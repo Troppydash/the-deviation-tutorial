@@ -51,8 +51,7 @@ body {
     flex: 1;
 
     display: flex;
-    overflow-x: hidden;
-    overflow-y: auto;
+    overflow: auto;
     align-items: flex-start;
 
     font-family: monospace;
@@ -166,4 +165,10 @@ body {
     font-size: 18px;
     padding: 0.5rem;
     overflow: auto;
+}
+
+@media only screen and (max-width: 1000px) {
+    .editor-output {
+        height: 100px;
+    }
 }
