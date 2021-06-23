@@ -1,14 +1,34 @@
 type Window
 
-impl hash(self) for Window {
+impl hash() for Window {
     javascript "pl.export('hash', window.location.hash.slice(1));"
     return hash
 }
 
-impl setHash(self, hash) for Window {
+impl setHash(hash) for Window {
     javascript "window.location.hash = pl.import('hash');"
     return hash
 }
 
+impl fontWidth(font, fontSize) for Window {
+    javascript """
+    const f = pl.import("font");
+    const fs = pl.import("fontSize");
+    const text = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz';
+    const o = document.createElement('div');
+    o.innerText = text;
+    o.style.position = 'absolute';
+    o.style.float = 'left';
+    o.style.whiteSpace = 'nowrap';
+    o.style.visibility = 'hidden';
+    o.style.fontFamily = f;
+    o.style.fontSize = fs;
+    document.body.appendChild(o);
+    const w = o.clientWidth  / text.length;
+    o.remove();
+    pl.export("w", w);
+    """
+    return w
+}
 
-window = Window()
+

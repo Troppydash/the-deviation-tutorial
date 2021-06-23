@@ -27,7 +27,7 @@ impl render(self, references) for Cursor {
     line.attach(self.element)
     line.setClass("selected")
     self.parent = line
-    self.element.setStyle("left", "\(9.906 * self.col)px")
+    self.element.setStyle("left", "\(FONT_WIDTH * self.col)px")
 }
 
 impl move(self, row, col) for Cursor {
@@ -276,7 +276,7 @@ impl showError(self) for TextArea {
         @banner = $("span").new().setClass("error").setText("[\(problem.code)] \(problem.message.capitalize())")
         line.attach(banner)
         @underline = $("span").new().setClass("underline").setHtml("&nbsp;" * problem.info.length)
-        underline.setStyle("left", "\(9.906 * (problem.info.col - problem.info.length + 1))px")
+        underline.setStyle("left", "\(FONT_WIDTH * (problem.info.col - problem.info.length + 1))px")
         line.attach(underline)
     }
 }
@@ -321,7 +321,7 @@ impl setListener(self, cursor) for TextArea {
 
 func handleClick(textArea, cursor, row) {
     return func(event) {
-        @col = (event.location.x / 9.906).int(0.5)
+        @col = (event.location.x / FONT_WIDTH).int(0.5)
         if col > self.content.get(row).size() {
             col = self.content.get(row).size() + 1
         }
@@ -330,3 +330,6 @@ func handleClick(textArea, cursor, row) {
         cursor.render(self.references)
     }
 }
+
+
+FONT_WIDTH = Window.fontWidth("monospace", "18px")

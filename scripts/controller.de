@@ -17,7 +17,7 @@ impl new(self, root, max) for Controller {
     }
 
     # auto load
-    @hash = window.hash()
+    @hash = Window.hash()
     if hash.size() /= 0 and Num(hash) /= null {
         self.render(Num(hash))
     } else {
@@ -26,7 +26,7 @@ impl new(self, root, max) for Controller {
 }
 
 impl render(self, n: Num) for Controller {
-    window.setHash(Str(n))
+    Window.setHash(Str(n))
 
     @page = self.pages.get(n)
     @context = page.render(self)
