@@ -1,5 +1,6 @@
 ```
-say("Hello World")
+food = ask("What is your favorite food?")
+say("Mine is eggs and bacon")
 ```
 
 # Input & Output
@@ -8,14 +9,14 @@ It is no fun if we were to write a program, but can't see the result. Devia allo
 
 **ask()** opens a prompt/dialogue in the browser, and it *returns* whatever the user inputted as a Str:
 ```
-date = ask()  # the variable date will be the user input 
+date = ask()  # date will be the input 
 ```
 
 **say(stuff)** displays the variable or value **stuff** into the output console below the editor. It *returns* null.
 ```
-say(date)           # prints the value in the variable date
-say("Hello World")  # prints the Str: Hello World
-a = say("Hi")       # variable a is always null
+say(date)           # prints date
+say("Hello World")  # prints string: Hello World
+a = say("Hi")       # a is always null
 ```
 
 ### Syntax Sugar
@@ -24,7 +25,7 @@ Syntax Sugar is a programming term meaning that a new syntax introduced is reall
 It is often more mannered to attach a message when asking someone. Instead of doing that with two statements: say(message) and ask(), there is a syntax sugar:
 ```
 date = ask("What is the date")
-# is the same as
+# the same as
 say("What is the date")
 date = ask()
 ```
@@ -32,8 +33,8 @@ date = ask()
 Similarly, to say multiple things at once.
 ```
 say("Hello", "World")  
-# A space is inserted between the words
-# so this prints: Hello World, and not HelloWorld
+# Space is inserted between the words
+# so it prints: Hello World, not HelloWorld
 ```
 
 ### Challenges

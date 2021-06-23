@@ -1,4 +1,4 @@
-MDS = 4
+MDS = 5
 
 type Controller(
     element,
@@ -32,27 +32,24 @@ impl render(self, n: Num) for Controller {
     @context = page.render(self)
     @back = $("button").new().setText("<")
     @forward = $("button").new().setText(">")
-    @navigate = $("div").new().setClass("page-navigate")
-    navigate.attach(back)
-    navigate.attach(forward)
-    context.1.attach(navigate)
 
     back.listen("click", func(e) {
         if n > 1 {
-            context.1.detach(navigate)
             context.1.detach(progress)
             self.render(n-1)
         }
     })
     forward.listen("click", func(e) {
         if n < self.pages.size() {
-            context.1.detach(navigate)
             context.1.detach(progress)
             self.render(n+1)
         }
     })
 
-    @progress = $("div").new().setClass("progress").setText("\(n)/\(MDS)")
+    @progress = $("div").new().setClass("progress")
+    progress.attach(back)
+    progress.attach($("span").new().setText("\(n)/\(MDS)"))
+    progress.attach(forward)
     context.1.insert(1, progress)
 }
 

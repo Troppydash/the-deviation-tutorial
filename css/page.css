@@ -52,11 +52,11 @@
     background-color: #adadad;
 }
 
-.page-navigate {
-
+.progress span {
+    margin: 0 0.5rem;
 }
 
-.page-navigate button {
+.progress button {
     padding: 0.3rem 1rem;
     background: #cbcbcb;
     color: #000000;
@@ -64,7 +64,7 @@
     font-size: 17px;
 }
 
-.page-navigate button:hover {
+.progress button:active {
     background: #a0a0a0;
 }
 

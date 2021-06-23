@@ -39,4 +39,4 @@ This tutorial is of a programming language called Deviation. This is a project f
 
 *This tutorial is written entirely in the deviation programming language itself, and I think that is pretty cool!*
 
-When you're ready, click the > button below to start.
+When you're ready, click the > button on top to start.
