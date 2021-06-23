@@ -246,11 +246,11 @@ impl highlight(self, change) for TextArea {
             @size = child.text().size()
             count = count + size
             if region.info.col == count {
-                 child.setStyle("color", region.color)
+                 child.setClass("hl-\(region.color)")
                  break
             }
             if region.info.col > count and region.info.col - region.info.length <= count - size {
-                 child.setStyle("color", region.color)
+                 child.setClass("hl-\(region.color)")
             }
         }
     }
@@ -262,6 +262,9 @@ impl raw(self) for TextArea {
 
 impl showError(self) for TextArea {
     @problems = bindings.Errors(self.raw())
+    if problems == null {
+        return
+    }
     each problem of problems {
         @line = self.references.get(problem.info.row+1)
         @children = line.children()

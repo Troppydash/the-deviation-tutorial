@@ -1,5 +1,16 @@
 ```
-1 + 1  # = 2
+a = 1
+b = 3
+c = -2
+
+# the discrim. is done for you
+discrim = maths.sqrt(b * b - 4 * a * c)
+
+# start here
+root1 = 0
+root2 = 0
+say("Root1:", root1)
+say("Root2:", root2)
 ```
 
 # Operators
@@ -59,10 +70,18 @@ say(1 + 2)
 say("Hello" + "World" + "!")
 ```
 
+### String Concatenation
+A syntax sugar to **concat** strings with other non-string types is shown below:
+```
+name = "Terry"
+age = 12
+say("Person \(name) is \(age) years old")
+```
+
 ### Challenges
 1. Write a program that ask for the user's firstname, middlename, and lastname. Then greet them in their full name.
 2. Try around with these operations on different data types. What are the reasons for those error messages?
-3. Complete the template program in the editor, make it compute the quadratic equation $$(-b +- sqrt(b^2-4ac))/2a$$ 
+3. Complete the program in the editor, make it compute the quadratic equation: $$\frac{-b \pm \sqrt{b^2-4ac}}{2a}$$
 
 
 

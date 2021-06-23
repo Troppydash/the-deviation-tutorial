@@ -1,4 +1,5 @@
 ```
+# click the New button to clear this
 seven = 7
 name = "Deviation"
 ```

@@ -67,6 +67,7 @@ body {
     flex: 1;
     cursor: text;
     min-height: 100%;
+    color: #b3b3b3;
 }
 
 .editor-linenum {
@@ -171,4 +172,26 @@ body {
     .editor-output {
         height: 100px;
     }
+}
+
+
+/*Highlighting*/
+.editor-textarea .hl-yellow {
+    color: #aca769;;
+}
+
+.editor-textarea .hl-cyan {
+    color: #6796bb;;
+}
+
+.editor-textarea .hl-magenta {
+    color: #ba7a07;;
+}
+
+.editor-textarea .hl-white {
+    color: white;;
+}
+
+.editor-textarea .hl-green {
+    color: #068730;
 }

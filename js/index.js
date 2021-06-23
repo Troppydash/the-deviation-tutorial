@@ -2463,6 +2463,9 @@ define("compiler/parsing/index", ["require", "exports", "problem/problem", "comp
             if (this.peekMatch([token_3.PlTokenType.NOT, token_3.PlTokenType.ADD, token_3.PlTokenType.SUB])) {
                 const token = this.nextToken();
                 const value = this.pPrefix();
+                if (value == null) {
+                    return value;
+                }
                 return new ast_1.ASTUnary([token], token, value);
             }
             return this.pPostfix();
@@ -5309,6 +5312,7 @@ define("vm/machine/native/modules/maths", ["require", "exports", "vm/machine/nat
             exp: "exp",
             pi: "PI",
             e: "E",
+            sqrt: "sqrt"
         })
     };
 });
@@ -7268,18 +7272,20 @@ define("compiler/parsing/visualizer", ["require", "exports", "compiler/parsing/a
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.ASTProgramToString = exports.HIGHLIGHT = void 0;
     const PPINDENT = 4;
-    const HIGHLIGHT_TYPES = ["kw", "sr", "mt", "nu"];
+    const HIGHLIGHT_TYPES = ["kw", "sr", "mt", "nu", "op"];
     exports.HIGHLIGHT = {
         kw: 'magenta',
         sr: 'green',
         mt: 'yellow',
         nu: 'cyan',
+        op: "white",
     };
     let c = {
         kw: color_4.colors[exports.HIGHLIGHT.kw],
         sr: color_4.colors[exports.HIGHLIGHT.sr],
         mt: color_4.colors[exports.HIGHLIGHT.mt],
         nu: color_4.colors[exports.HIGHLIGHT.nu],
+        op: color_4.colors[exports.HIGHLIGHT.op],
     };
     function ASTProgramToString(program) {
         return program.map(statement => ats(statement)).join("\n\n");
@@ -7437,7 +7443,7 @@ define("compiler/parsing/visualizer", ["require", "exports", "compiler/parsing/a
         }
     }
 });
-define("compiler/parsing/highlighter", ["require", "exports", "compiler/parsing/visualizer", "compiler/parsing/ast", "inout/color", "compiler/lexing/token"], function (require, exports, visualizer_1, ast_4, color_5, token_7) {
+define("compiler/parsing/highlighter", ["require", "exports", "compiler/parsing/visualizer", "compiler/parsing/ast", "inout/color"], function (require, exports, visualizer_1, ast_4, color_5) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.ASTProgramHighlight = exports.ASTProgramToColorRegions = void 0;
@@ -7481,12 +7487,7 @@ define("compiler/parsing/highlighter", ["require", "exports", "compiler/parsing/
             }
             else if (node instanceof ast_4.ASTBinary) {
                 const info = node.operator.info;
-                if (node.operator.type == token_7.PlTokenType.AND || node.operator.type == token_7.PlTokenType.OR) {
-                    regions.push(NewPlColorRegion(info, visualizer_1.HIGHLIGHT.kw));
-                }
-                else {
-                    regions.push(NewPlColorRegion(info, visualizer_1.HIGHLIGHT.mt));
-                }
+                regions.push(NewPlColorRegion(info, visualizer_1.HIGHLIGHT.op));
             }
             else if (node instanceof ast_4.ASTAssign || node instanceof ast_4.ASTCreate) {
                 const info = node.tokens[0].info;
@@ -7513,7 +7514,7 @@ define("compiler/parsing/highlighter", ["require", "exports", "compiler/parsing/
                 regions.push(NewPlColorRegion(node.getSpanToken().info, visualizer_1.HIGHLIGHT.nu));
             }
             else if (node instanceof ast_4.ASTUnary) {
-                regions.push(NewPlColorRegion(node.operator.info, visualizer_1.HIGHLIGHT.mt));
+                regions.push(NewPlColorRegion(node.operator.info, visualizer_1.HIGHLIGHT.op));
             }
         }
         for (const s of ast) {
@@ -7852,7 +7853,7 @@ define("timestamp/index", ["require", "exports"], function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.timestamp = void 0;
-    exports.timestamp = '2021-06-18T09:59:52.767Z';
+    exports.timestamp = '2021-06-23T11:04:05.877Z';
 });
 define("repl/index", ["require", "exports", "inout/index", "linking/index", "problem/printer", "inout/color", "vm/machine/native/converter", "vm/machine/index", "inout/file", "timestamp/index", "compiler/lexing/index", "compiler/parsing/index", "vm/emitter/index", "compiler/parsing/visualizer", "vm/emitter/printer"], function (require, exports, inout_7, linking_1, printer_4, color_6, converter_10, machine_2, file_3, timestamp_1, lexing_3, parsing_3, emitter_4, visualizer_2, printer_5) {
     "use strict";

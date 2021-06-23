@@ -39,6 +39,10 @@ impl render(self, parent) for Page {
             createSnippet(icode, code)
         }
 
+        # replace latex
+        bindings.katex.render(text)
+
+
         @editor = $("div").new().setClass("page-editor")
         createEditor(editor, code.text())
         self.element.attach(text)

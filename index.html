@@ -13,10 +13,14 @@
     <link href="css/page.css" rel="stylesheet">
 
     <!-- Katex CDN -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.11/dist/katex.min.css" integrity="sha384-Um5gpz1odJg5Z4HAmzPtgZKdTBHZdw8S29IecapCSB31ligYPhHQZMIlWLYQGVoc" crossorigin="anonymous">
-    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.11/dist/katex.min.js" integrity="sha384-YNHdsYkH6gMx9y3mRkmcJ2mFUjTd0qNQQvY9VYZgQd7DcN7env35GzlmFaZ23JGp" crossorigin="anonymous"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.11/dist/contrib/auto-render.min.js" integrity="sha384-vZTG03m+2yp6N6BNi5iM4rW4oIwk5DfcNdFfxkk9ZWpDriOkXX8voJBFrAO7MpVl" crossorigin="anonymous"
-            onload="renderMathInElement(document.body);"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.11/dist/katex.min.css"
+          integrity="sha384-Um5gpz1odJg5Z4HAmzPtgZKdTBHZdw8S29IecapCSB31ligYPhHQZMIlWLYQGVoc" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.13.11/dist/katex.min.js"
+            integrity="sha384-YNHdsYkH6gMx9y3mRkmcJ2mFUjTd0qNQQvY9VYZgQd7DcN7env35GzlmFaZ23JGp"
+            crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.13.11/dist/contrib/auto-render.min.js"
+            integrity="sha384-vZTG03m+2yp6N6BNi5iM4rW4oIwk5DfcNdFfxkk9ZWpDriOkXX8voJBFrAO7MpVl"
+            crossorigin="anonymous"></script>
 </head>
 <body>
 
@@ -42,10 +46,19 @@
         omitExtraWLInCodeBlocks: true,
         openLinksInNewWindow: true,
     });
+    // katex bindings
     window.data = {
         exports: {
             markdown: {
                 makeHtml: text => converter.makeHtml(text)
+            },
+            katex: {
+                render: element => renderMathInElement(element["#raw"].value.get().result[0], {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$', right: '$', display: false},
+                    ]
+                })
             }
         }
     };
@@ -59,9 +72,38 @@
          style="background-color: #393939;color:#cecece;font-family: monospace;font-size: 1.25rem;padding: 0.75rem;overflow: auto"
          onclick="event.stopPropagation()"></div>
 </div>
-<script>const model=document.getElementById("pl-model"),body=document.getElementById("pl-model-body");function openModel(e){body.innerHTML=e,model.style.display="flex"}function modelOpen(){return"flex"===model.style.display}function closeModel(){model.style.display="none",buffer.length>0&&openModel(buffer.shift())}function replace(e,n,o){return e.split(n).join(o)}let content=[],buffer=[];window.extern={print(e){content.push(`<span>${replace(replace(e," ","&nbsp;"),"<span\\","<span ")}</span>`)},flush(){if(0===content.length)return;const e=content.join("<br/>");buffer.push(replace(e,"\n","<br/>")),content=[],modelOpen()||openModel(buffer.shift())}};</script>
+<script>const model = document.getElementById("pl-model"), body = document.getElementById("pl-model-body");
+
+function openModel(e) {
+    body.innerHTML = e, model.style.display = "flex"
+}
+
+function modelOpen() {
+    return "flex" === model.style.display
+}
+
+function closeModel() {
+    model.style.display = "none", buffer.length > 0 && openModel(buffer.shift())
+}
+
+function replace(e, n, o) {
+    return e.split(n).join(o)
+}
+
+let content = [], buffer = [];
+window.extern = {
+    print(e) {
+        content.push(`<span>${replace(replace(e, " ", "&nbsp;"), "<span\\", "<span ")}</span>`)
+    }, flush() {
+        if (0 === content.length) return;
+        const e = content.join("<br/>");
+        buffer.push(replace(e, "\n", "<br/>")), content = [], modelOpen() || openModel(buffer.shift())
+    }
+};</script>
 <script src="js/index.js"></script>
-<script>require(["inout/otherInout","browser/exports"],function(o,r){window.data={exports:{...window.data.exports, ...r}}});</script>
+<script>require(["inout/otherInout", "browser/exports"], function (o, r) {
+    window.data = {exports: {...window.data.exports, ...r}}
+});</script>
 <script>require(['browser/index']);</script>
 </body>
 </html>
