@@ -20,14 +20,15 @@
 .page-text {
     background: #343434;
     color: white;
-    flex: 1.5;
+    width: 40%;
 
     font-family: "CMU Serif", serif;
-    font-size: 20px;
+    font-size: 1.15rem;
     padding: 0.5rem 1.5rem;
 
     overflow-x: hidden;
     overflow-y: scroll;
+
 }
 
 .page-text a:visited,
@@ -36,7 +37,7 @@
 }
 
 .page-editor {
-    flex: 2.5;
+    width: 60%;
 }
 
 /*scrollbar*/
@@ -53,15 +54,15 @@
 }
 
 .progress span {
+    font-size: 1rem;
     margin: 0 0.5rem;
 }
 
 .progress button {
-    padding: 0.3rem 1rem;
     background: #cbcbcb;
     color: #000000;
     border: 1px solid #444444;
-    font-size: 17px;
+    font-size: 1rem;
 }
 
 .progress button:active {
@@ -81,6 +82,12 @@
     }
 
     .page-text {
-        flex: 3;
+        width: 100%;
+        height: 60%;
+    }
+
+    .page-editor {
+        width: 100%;
+        height: 40%;
     }
 }

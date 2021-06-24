@@ -17,15 +17,14 @@ body {
 }
 
 .editor-snippet {
-    box-shadow: 0 0 7px 0 #02668e;
+    box-shadow: 0 0 2px 0 #ffffff;
 }
 
 .editor-navbar {
-    padding: 0.5rem;
+    padding: 0.1rem;
     display: flex;
     align-items: center;
     justify-content: flex-start;
-    /*border-bottom: 1px solid #d7d7d7;*/
 }
 
 .editor-navbar > button.navbar-button {
@@ -42,9 +41,12 @@ body {
     background: #02668e;
 }
 
+.editor-navbar > button.navbar-button {
+    font-size: 0.8rem;
+}
+
 .editor-navbar > button.navbar-button > span {
     margin-left: 10px;
-    font-size: 16px;
 }
 
 .editor-area {
@@ -73,7 +75,6 @@ body {
 .editor-linenum {
     padding: 0 1.5rem 0 1rem;
     background: #404040;
-    /*border-right: 1px solid #d7d7d7;*/
     min-height: 100%;
 }
 
@@ -126,6 +127,10 @@ body {
     background: transparent;
 }
 
+.editor.editor-snippet .editor-output {
+    height: auto;
+}
+
 .editor-textarea > div > span.error {
     position: absolute;
     right: 0;
@@ -159,11 +164,10 @@ body {
 
 .editor-output {
     height: 200px;
-    /*border-top: 1px solid #d7d7d7;*/
     background: #000000;
     color: #efefef;
     font-family: monospace, monospace;
-    font-size: 18px;
+    font-size: 1.15rem;
     padding: 0.5rem;
     overflow: auto;
 }

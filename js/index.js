@@ -979,8 +979,7 @@ define("compiler/lexing/index", ["require", "exports", "compiler/lexing/token", 
                     return token_1.NewPlToken(token_1.PlTokenType.STR, content.substring(0, content.length - 1), fi);
                 }
                 this.advancePointer();
-                let oldCol = this.currentCol;
-                let lastCol = oldCol;
+                let lastCol = this.currentCol;
                 const lastBuffer = this.buffer.length;
                 const info = this.currentFileInfo(1);
                 while (true) {
@@ -1024,7 +1023,7 @@ define("compiler/lexing/index", ["require", "exports", "compiler/lexing/token", 
                                 content = '';
                                 this.advancePointer();
                                 this.addBuffer(token_1.NewPlToken(token_1.PlTokenType.ADD, '+', this.currentFileInfo(2)));
-                                this.addBuffer(token_1.NewPlToken(token_1.PlTokenType.VARIABLE, 'Str', this.currentFileInfo(1)));
+                                this.addBuffer(token_1.NewPlToken(token_1.PlTokenType.VARIABLE, 'Str', info_2.NewEmptyFileInfo('')));
                                 this.addBuffer(token_1.NewPlToken(token_1.PlTokenType.LPAREN, '(', this.currentFileInfo(1)));
                                 const lparen = this.currentFileInfo(2);
                                 let lparens = 0;
@@ -1054,7 +1053,7 @@ define("compiler/lexing/index", ["require", "exports", "compiler/lexing/token", 
                                     }
                                 }
                                 this.addBuffer(token_1.NewPlToken(token_1.PlTokenType.ADD, '+', this.currentFileInfo(1)));
-                                lastCol = this.currentCol;
+                                lastCol = this.currentCol + 1;
                                 continue;
                             }
                             default: {
@@ -2306,7 +2305,7 @@ define("compiler/parsing/index", ["require", "exports", "problem/problem", "comp
                 switch (nextToken.type) {
                     case token_3.PlTokenType.CASE: {
                         tokens.push(this.nextToken());
-                        const args = this.pArgs(nextToken, "ET0034", "ET0035", token_3.PlTokenType.LBRACE);
+                        const args = this.pArgs(nextToken, "ET0034", "ET0035", token_3.PlTokenType.LBRACE, false);
                         if (args == null) {
                             return null;
                         }
@@ -2699,7 +2698,7 @@ define("compiler/parsing/index", ["require", "exports", "problem/problem", "comp
             }
             return [key, colon, value];
         }
-        pArgs(startToken, commaCode, endTokenCode = "CE0005", endToken = token_3.PlTokenType.RPAREN) {
+        pArgs(startToken, commaCode, endTokenCode = "CE0005", endToken = token_3.PlTokenType.RPAREN, consume = true) {
             let expressions = [];
             let tokens = [];
             while (true) {
@@ -2732,7 +2731,8 @@ define("compiler/parsing/index", ["require", "exports", "problem/problem", "comp
                 tokens.push(peekToken);
                 expressions.push(expression);
             }
-            tokens.push(this.nextToken());
+            if (consume)
+                tokens.push(this.nextToken());
             return [expressions, tokens];
         }
         pArgsNoParen() {
@@ -4732,6 +4732,12 @@ define("vm/machine/native/impl/str", ["require", "exports", "vm/machine/scramble
         }),
         [scrambler_5.ScrambleType("reverse", stuff_8.PlStuffType.Str)]: helpers_4.GenerateGuardedTypeFunction("reverse", [], function (self) {
             return self.split('').reverse().join('');
+        }),
+        [scrambler_5.ScrambleType("startsWith", stuff_8.PlStuffType.Str)]: helpers_4.GenerateGuardedTypeFunction("startsWith", [stuff_8.PlStuffType.Str], function (self, other) {
+            return self.startsWith(other);
+        }),
+        [scrambler_5.ScrambleType("endsWith", stuff_8.PlStuffType.Str)]: helpers_4.GenerateGuardedTypeFunction("ensdWith", [stuff_8.PlStuffType.Str], function (self, other) {
+            return self.endsWith(other);
         })
     };
     exports.str = {
@@ -4934,7 +4940,7 @@ define("vm/machine/native/special", ["require", "exports", "vm/machine/native/co
             }).bind(this);
             try {
                 this.inout.execute(code.value, {
-                    pl: {
+                    de: {
                         import: _import,
                         export: _export
                     }
@@ -7516,11 +7522,15 @@ define("compiler/parsing/highlighter", ["require", "exports", "compiler/parsing/
             else if (node instanceof ast_4.ASTUnary) {
                 regions.push(NewPlColorRegion(node.operator.info, visualizer_1.HIGHLIGHT.op));
             }
+            else if (node instanceof ast_4.ASTMatch) {
+                for (const token of node.tokens)
+                    regions.push(NewPlColorRegion(token.info, visualizer_1.HIGHLIGHT.kw));
+            }
         }
         for (const s of ast) {
             visit(s, visitor);
         }
-        return regions.sort((r1, r2) => {
+        return regions.filter(r => r.info.length > 0).sort((r1, r2) => {
             if (r1.info.row > r2.info.row) {
                 return 1;
             }
@@ -7651,6 +7661,8 @@ define("compiler/parsing/highlighter", ["require", "exports", "compiler/parsing/
                 }
                 visit(node.blocks[i], closure);
             }
+            if (node.other)
+                visit(node.other, closure);
         }
         else if (node instanceof ast_4.ASTClosure) {
             for (const a of node.args) {

@@ -1,5 +1,5 @@
 ```
-# FizzBuzz Template
+# Hints:
 # a.mod(b) gets the remainder of 5 / 2
 # "Hello".have("lo") returns true if the string "Hello"
 # have the string "lo" inside
@@ -71,12 +71,9 @@ match weekday {
 If there are no conditions in a match statement, the first case branch that evaluates to true is ran instead.
 ```
 match {
-    case 1 > 2 {
-    }
-    case false {
-    }
-    default {
-    }
+    case 1 > 2 {}
+    case false {}
+    default {}
 }
 ```
 

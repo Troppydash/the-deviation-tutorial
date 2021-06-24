@@ -206,8 +206,8 @@ impl bind(self) for Editor {
 
         # hand it to js
         javascript """
-        const callback = pl.import("callback");
-        const event = pl.import("event")["#raw"].value;
+        const callback = de.import("callback");
+        const event = de.import("event")["#raw"].value;
         const file = event.dataTransfer.files[0];
         const reader = new window.FileReader();
         reader.onload = (e) => {
@@ -254,10 +254,26 @@ func createEditor(root, text) {
     out.navbar.bind(out.output, out.editor)
     return out
 }
-
+SHEBANG = "#!/run\n"
 func createSnippet(root, text) {
-     root.setClass("\(root.class()) editor editor-snippet")
-     @editor = Editor(root)
-     editor.setContent(text)
-     return editor
+    root.setClass("\(root.class()) editor editor-snippet")
+    @editor = Editor(root)
+    if text.startsWith(SHEBANG) {
+        text = text.substring(SHEBANG.size()+1, text.size())
+
+        # try running it
+        @out = list()
+        @inout = dict(
+           print: func(message) out.add(message),
+           input: func(message) null,
+           flush: func() {}
+        )
+        @code = bindings.Execute(text, inout)
+        if code == 0 and out.size() > 0 {
+             @output = Output(root)
+             output.setText(out.join("\n"))
+        }
+    }
+    editor.setContent(text)
+    return editor
 }

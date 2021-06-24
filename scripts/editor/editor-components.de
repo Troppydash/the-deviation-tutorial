@@ -322,6 +322,9 @@ impl setListener(self, cursor) for TextArea {
 func handleClick(textArea, cursor, row) {
     return func(event) {
         @col = (event.location.x / FONT_WIDTH).int(0.5)
+        if col < 1 {
+            col = 1
+        }
         if col > self.content.get(row).size() {
             col = self.content.get(row).size() + 1
         }

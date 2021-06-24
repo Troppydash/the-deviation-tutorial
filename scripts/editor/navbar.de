@@ -39,7 +39,7 @@ impl bind(self, output: Output, editor) for Navbar {
         },
         input: func(message) {
             javascript """
-            pl.export("text", window.prompt(pl.import("message")));
+            de.export("text", window.prompt(de.import("message")));
             """
             return text
         },
@@ -63,7 +63,7 @@ impl bind(self, output: Output, editor) for Navbar {
     self.export.clicked(func(_) {
         @text = editor.textArea.raw()
         javascript """
-            const content = pl.import("text");
+            const content = de.import("text");
             const cb = navigator.clipboard;
             cb.writeText(content);
         """
