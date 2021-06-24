@@ -40,7 +40,8 @@ If the conversion were to fail - like **casting** "Hello" to a number, the resul
 
 ### Challenges
 1. Now that you can convert user input to other types, write a program that ask someone their age, and tell them how old they are in 18 years.
-2. Mess around with converting types, see if you can predict the outcome.
+2. Write a program that checks for two user inputs, and prints if they are the same number.
+3. Mess around with converting types, see if you can predict the outcome.
 
 
 
