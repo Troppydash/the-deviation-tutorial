@@ -1,4 +1,4 @@
-PREFIX = "pages/page"
+PREFIX = "pages"
 
 type Page(
     element,
@@ -16,7 +16,12 @@ impl render(self, parent) for Page {
         self._loaded = true
 
         # create page
-        @md = fetch("\(PREFIX)\(self.number).md")
+        @md = null
+        if self.number.is(Num) {
+            md = fetch("\(PREFIX)/page\(self.number).md")
+        } else {
+            md = fetch("\(PREFIX)/\(self.number).md")
+        }
         if not md.ok {
             panic("Unable to fetch page\(self.number) markdown")
         }
@@ -31,12 +36,21 @@ impl render(self, parent) for Page {
         # replace code with live
         @codeBlocks = text.$("pre > code").all()
         each block of codeBlocks {
+            @code = Editor.cleanText(block.text())
             @parent = block.parent()
-            @code = block.text()
             parent.clear()
             @icode = $("div").new()
             parent.attach(icode)
-            createSnippet(icode, code)
+            if code.startsWith("#!/raw") {
+                code = code.substring("#!/raw\n".size()+1, code.size())
+                createSnippet(icode, code, dict(raw: true))
+                continue
+            } elif code.startsWith("#!/run\n") {
+                code = code.substring("#!/run\n".size()+1, code.size())
+                createSnippet(icode, code, dict(run: true))
+            } else {
+                createSnippet(icode, code, dict())
+            }
         }
 
         # replace latex

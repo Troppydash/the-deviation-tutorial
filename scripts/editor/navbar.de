@@ -1,71 +1,93 @@
-type NavButton(element)
+type NavButton(element, callback)
 
 impl new(self, text: Str, icon: FaIcon) for NavButton {
     self.element = $("button").new().setClass("navbar-button")
     self.element.attach(icon.raw())
     self.element.attach($("span").new().setText(text))
+    self.callback = func(_, _) {}
 }
 
 impl raw(self) for NavButton {
     return self.element
 }
 
-impl clicked(self, fn) for NavButton {
-    self.element.listen("click", fn)
+impl listen(self, all) for NavButton {
+    self.element.listen("click", func(event) {
+        self.callback(event, all)
+    })
+}
+
+impl bind(self, fn: Func) for NavButton {
+    self.callback = fn
 }
 
 
-type Navbar(root, run, new, export)
+type Navbar(root, buttons)
 
-impl new(self, parent) for Navbar {
+impl new(self, parent, buttons) for Navbar {
     self.root = $("div").new().setClass("editor-navbar")
     parent.attach(self.root)
 
-    self.run = NavButton("Run", FaIcon("play", "green"))
-    self.root.attach(self.run.raw())
-
-    self.new = NavButton("New", FaIcon("file", "white"))
-    self.root.attach(self.new.raw())
-
-    self.export = NavButton("Copy", FaIcon("clipboard", "white"))
-    self.root.attach(self.export.raw())
+    self.buttons = buttons
+    each button of buttons {
+        self.root.attach(button.raw())
+    }
 }
 
-impl bind(self, output: Output, editor) for Navbar {
-    @inout = dict(
-        print: func(message) {
-            @text = message.replace("<span\\", "<span ").replace(" ", "&nbsp;")
-            output.addLine(text)
-        },
-        input: func(message) {
-            javascript """
-            de.export("text", window.prompt(de.import("message")));
-            """
-            return text
-        },
-        flush: func() {}
-    )
+impl bind(self, all) for Navbar {
+    each button of self.buttons {
+        button.listen(all)
+    }
+}
 
-    self.run.clicked(func(event) {
-        output.clear()
-        @text = editor.textArea.raw()
-        @code = bindings.Execute(text, inout)
-    })
+impl standardButtons() for Navbar {
+   @new = NavButton("New", FaIcon("file", "white"))
+   @copy = NavButton("Copy", FaIcon("clipboard", "white"))
+   @run = NavButton("Run", FaIcon("play", "green"))
+   @reload = NavButton("Reload", FaIcon("redo-alt", "white"))
 
-    self.new.clicked(func(_) {
+   run.bind(func(event, all) {
+        @output = all.output
+        @textArea = all.editor.textArea
+        @inout = dict(
+            print: func(message) {
+                @text = message.replace("<span\\", "<span ").replace(" ", "&nbsp;")
+                output.addLine(text)
+            },
+            input: func(message) {
+                javascript """
+                de.export("text", window.prompt(de.import("message")));
+                """
+                return text
+            },
+            flush: func() {}
+        )
+       output.clear()
+       bindings.Execute(textArea.raw(), inout)
+   })
+
+   new.bind(func(_, all) {
+        @output = all.output
+        @editor = all.editor
         output.clear()
         editor.textArea.updateContent(list(""))
         editor.textArea.setListener(editor.cursor)
         editor.cursor.move(1, 1)
         editor.cursor.render(editor.textArea.references)
-    })
+   })
 
-    self.export.clicked(func(_) {
-        @text = editor.textArea.raw()
+   copy.bind(func(_, all) {
+        @text = all.editor.textArea.raw()
         javascript """
             const content = de.import("text");
             const cb = navigator.clipboard;
             cb.writeText(content);
         """
-    })
+   })
+
+   reload.bind(func(_, all) {
+        all.editor.setContent(all.editor.getContent())
+   })
+
+   return list(run, new, copy, reload)
 }

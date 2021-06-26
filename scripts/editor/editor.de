@@ -227,8 +227,6 @@ impl getContent(self) for Editor {
 }
 
 impl setContent(self, text: Str) for Editor {
-    text = text.split("\r\n").join("\n")
-    text = text.split("\r").join("\n")
     self.textArea.updateContent(text.split("\n"))
     self.textArea.setListener(self.cursor)
     self.cursor.move(1, 1)
@@ -237,7 +235,8 @@ impl setContent(self, text: Str) for Editor {
 
 func attachEditor($root) {
     $root.setClass("\($root.class()) editor")
-    @navbar = Navbar($root)
+
+    @navbar = Navbar($root, Navbar.standardButtons())
     @editor = Editor($root)
     @output = Output($root)
     return dict(
@@ -251,16 +250,14 @@ func createEditor(root, text) {
     @out = attachEditor(root)
     out.editor.setContent(text)
     out.editor.bind()
-    out.navbar.bind(out.output, out.editor)
+    out.navbar.bind(out)
     return out
 }
-SHEBANG = "#!/run\n"
-func createSnippet(root, text) {
+
+func createSnippet(root, text, options) {
     root.setClass("\(root.class()) editor editor-snippet")
     @editor = Editor(root)
-    if text.startsWith(SHEBANG) {
-        text = text.substring(SHEBANG.size()+1, text.size())
-
+    if options.have("run") and options.have("run") {
         # try running it
         @out = list()
         @inout = dict(
@@ -274,6 +271,17 @@ func createSnippet(root, text) {
              output.setText(out.join("\n"))
         }
     }
-    editor.setContent(text)
+
+    text = Editor.cleanText(text)
+    if options.have("raw") and options.have("raw") {
+          editor.textArea.content = text.split("\n")
+          editor.textArea.update(null, false)
+    } else {
+        editor.setContent(text)
+    }
     return editor
+}
+
+impl cleanText(text) for Editor {
+    return text.split("\r\n").join("\n").split("\r").join("\n")
 }

@@ -6,15 +6,11 @@ type Controller(
     current
 )
 
-impl new(self, root, max) for Controller {
+impl new(self, root, pages) for Controller {
     self.element = $("div").new().setClass("controller")
     root.attach(self.element)
     self.current = 1
-
-    self.pages = list()
-    each n of range(max) {
-        self.pages.add(Page(n))
-    }
+    self.pages = pages
 
     # auto load
     @hash = Window.hash()
@@ -48,10 +44,15 @@ impl render(self, n: Num) for Controller {
 
     @progress = $("div").new().setClass("progress")
     progress.attach(back)
-    progress.attach($("span").new().setText("\(n)/\(MDS)"))
+    progress.attach($("span").new().setText("\(n)/\(self.pages.size())"))
     progress.attach(forward)
     context.1.insert(1, progress)
 }
 
-c = Controller($("#root"), MDS)
+pages = list()
+each n of range(MDS) {
+    pages.add(Page(n))
+}
+
+c = Controller($("#root"), pages)
 
