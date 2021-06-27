@@ -85,7 +85,7 @@ impl colStatus(self, content) for Cursor {
     return status
 }
 
-type TextArea(root, content, references, _lineNumbers, _lines)
+type TextArea(root, content, references, _lineNumbers, _lines, _errors, _changes, _errorChanges)
 
 impl new(self, root) for TextArea {
     $textArea = $("div").new()
@@ -105,33 +105,46 @@ impl new(self, root) for TextArea {
     $lines.setClass "editor-textarea"
     $textArea.attach($lines)
     self._lines = $lines
+
+    self._errors = list()
+    self._changes = list()
+    self._errorChanges = list()
 }
 
 ADD = 0
 REPLACE = 1
 REMOVE = 2
 type Change(line, way)
+impl >(self, other) for Change {
+    return self.line > other.line
+}
+impl ==(self, other) for Change {
+    return self.line == other.line
+}
 
-impl render(self, change) for TextArea {
-    self.renderNumbers(change)
+impl render(self) for TextArea {
+    @changes = self._changes
 
-    if change /= null {
-        match change.way {
-            case ADD {
-                @newLine = $("div").new()
-                newLine.setHtml(self.renderLine(change.line))
-                self._lines.insert(change.line, newLine)
-                self.references.insert(change.line, newLine)
-            }
-            case REPLACE {
-                @line = self.references.get(change.line)
-                line.clear()
-                line.setHtml(self.renderLine(change.line))
-                self._lines.set(change.line, newLine)
-            }
-            case REMOVE {
-                self.references.remove(change.line)
-                self._lines.remove(change.line)
+    self.renderNumbers(changes)
+    if changes.size() > 0 {
+        each change of changes {
+            match change.way {
+                case ADD {
+                    @newLine = $("div").new()
+                    newLine.setHtml(self.renderLine(change.line))
+                    self._lines.insert(change.line, newLine)
+                    self.references.insert(change.line, newLine)
+                }
+                case REPLACE {
+                    @line = self.references.get(change.line)
+                    line.clear()
+                    line.setHtml(self.renderLine(change.line))
+                    self._lines.set(change.line, line)
+                }
+                case REMOVE {
+                    self.references.remove(change.line)
+                    self._lines.remove(change.line)
+                }
             }
         }
         return
@@ -148,20 +161,21 @@ impl render(self, change) for TextArea {
     self.references = self._lines.children()
 }
 
-impl renderNumbers(self, change) for TextArea {
+impl renderNumbers(self, changes) for TextArea {
     @lastLine = self.content.size().str().size()
-    if change /= null {
-        match change.way {
-            case ADD {
-                @row = change.line
-                @lineNumber = $("div").new().setHtml("&nbsp;" * (lastLine-row.str().size()) + row.str())
-                self._lineNumbers.insert(row, lineNumber)
-            }
-            case REMOVE {
-                self._lineNumbers.remove(change.line)
+    if changes.size() > 0 {
+        each change of changes {
+            match change.way {
+                case ADD {
+                    @row = change.line
+                    @lineNumber = $("div").new().setHtml("&nbsp;" * (lastLine-row.str().size()) + row.str())
+                    self._lineNumbers.insert(row, lineNumber)
+                }
+                case REMOVE {
+                    self._lineNumbers.remove(change.line)
+                }
             }
         }
-        return
     }
 
     self._lineNumbers.clear()
@@ -227,18 +241,44 @@ impl renderLine(self, lineNumber: Num) for TextArea {
     return out.join("")
 }
 
-impl highlight(self, change) for TextArea {
+impl highlight(self) for TextArea {
+    # remove all errors
+    each error of self._errors {
+         # remove error nodes
+         @msg = error.$("span.error")
+         if msg.any() {
+            error.detach(msg)
+         }
+
+         @ul = error.$("span.underline")
+         if ul.any() {
+            error.detach(ul)
+         }
+    }
+    self._errors = list()
+
     @regions = bindings.Highlight(self.raw())
     if regions == null {
         self.showError()
         return
     }
 
+    @changes = self._errorChanges
     each region of regions {
-        # random threshold for error because I am very lazy
-        if change /= null and (change.line - region.info.row+1).abs() > 3 {
-            continue
+        if changes.size() > 0 {
+             @skip = true
+             each change of changes {
+                   if change.line == region.info.row+1 {
+                       skip = false
+                       break
+                   }
+             }
+             if skip {
+                 continue
+             }
         }
+
+
         @row = self.references.get(region.info.row+1)
         @children = row.children()
         @count = 0
@@ -254,6 +294,7 @@ impl highlight(self, change) for TextArea {
             }
         }
     }
+    self._errorChanges = list()
 }
 
 impl raw(self) for TextArea {
@@ -265,52 +306,69 @@ impl showError(self) for TextArea {
     if problems == null {
         return
     }
+
+    self._errors = list()
     each problem of problems {
         @line = self.references.get(problem.info.row+1)
-        @children = line.children()
-        each child, i of children.reverse() {
-            if child.class() == "error" or child.class() == "underline" {
-                return
-            }
-        }
+        self._errors.add(line)
+
         @banner = $("span").new().setClass("error").setText("[\(problem.code)] \(problem.message.capitalize())")
         line.attach(banner)
         @underline = $("span").new().setClass("underline").setHtml("&nbsp;" * problem.info.length)
-        underline.setStyle("left", "\(FONT_WIDTH * (problem.info.col - problem.info.length + 1))px")
+        underline.setStyle("left", "\(FONT_WIDTH * (problem.info.col - problem.info.length) + 12)px")
         line.attach(underline)
     }
 }
 
-impl updateLine(self, row, newLine, highlight) for TextArea {
+impl addChange(self, row, t) for TextArea {
+    self._changes.add(Change(row, t))
+}
+
+impl updateLine(self, row, newLine) for TextArea {
     if row > self.content.size() {
         self.content.add(newLine)
-        self.update(Change(row, ADD), highlight)
+        self.addChange(row, ADD)
     } else {
         self.content.set(row, newLine)
-        self.update(Change(row, REPLACE), highlight)
+        self.addChange(row, REPLACE)
     }
 }
 
-impl insertLine(self, row, newLine, highlight) for TextArea {
+impl insertLine(self, row, newLine) for TextArea {
     self.content.insert(row, newLine)
-    self.update(Change(row, ADD), highlight)
+    each change of self._changes {
+        if change.line >= row {
+            change.line = change.line + 1
+        }
+    }
+    self.addChange(row, ADD)
 }
 
-impl removeLine(self, row, highlight) for TextArea {
+impl removeLine(self, row) for TextArea {
     self.content.remove(row)
-    self.update(Change(row, REMOVE), highlight)
+    self.addChange(row, REMOVE)
 }
 
 impl updateContent(self, newContent) for TextArea {
     self.content = newContent
-    self.update(null, true)
+    self.update(true)
 }
 
-impl update(self, change, highlight: Bool) for TextArea {
-    self.render(change)
-    if highlight {
-        self.highlight(change)
+
+impl extend(self, other) for List {
+    each i of other {
+        self.add(i)
     }
+}
+
+impl update(self, highlight: Bool) for TextArea {
+    self._changes = self._changes.sort()
+    self.render()
+    if highlight {
+        self._errorChanges.extend(self._changes)
+        self.highlight()
+    }
+    self._changes = list()
 }
 
 impl setListener(self, cursor) for TextArea {

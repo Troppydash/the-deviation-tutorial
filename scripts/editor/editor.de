@@ -69,7 +69,8 @@ impl handleKeys(self, event) for Editor {
                 @pair = left + right
                 if PAIRED_SYMBOLS.have(pair) {
                     @newLine = line.remove(cursor.col).remove(cursor.col-1)
-                    textArea.updateLine(cursor.row, newLine, true)
+                    textArea.updateLine(cursor.row, newLine)
+                    textArea.update(true)
                     textArea.setListener(cursor)
                     cursor.shift(0, -1)
                     cursor.render(self.textArea.references)
@@ -85,16 +86,17 @@ impl handleKeys(self, event) for Editor {
                  ws++
             }
             if line.size() - ws == 0 and cursor.col == ws + 1 {
-                textArea.removeLine(cursor.row, true)
+                textArea.removeLine(cursor.row)
                 cursor.move(cursor.row-1, content.get(cursor.row-1).size()+1)
             } elif cursor.colStatus(content).have(STATUS_LESS) {
-                textArea.removeLine(cursor.row, false)
+                textArea.removeLine(cursor.row)
                 cursor.move(cursor.row-1, content.get(cursor.row-1).size()+1)
-                textArea.updateLine(cursor.row, content.get(cursor.row)+line, true)
+                textArea.updateLine(cursor.row, content.get(cursor.row)+line)
             } else {
-                textArea.updateLine(cursor.row, line.remove(cursor.col-1), true)
+                textArea.updateLine(cursor.row, line.remove(cursor.col-1))
                 cursor.shift(0, -1)
             }
+            textArea.update(true)
             cursor.render(textArea.references)
             textArea.setListener(cursor)
         }
@@ -114,10 +116,11 @@ impl handleKeys(self, event) for Editor {
                 @right = content.get(cursor.row).get(cursor.col)
                 @pair = left + right
                 if PAIRED_SYMBOLS.have(pair) {
-                    textArea.updateLine(cursor.row, line.substring(1, cursor.col-1), false)
+                    textArea.updateLine(cursor.row, line.substring(1, cursor.col-1))
                     @last = " " * ws + line.substring(cursor.col, line.size())
-                    textArea.insertLine(cursor.row+1, last, false)
-                    textArea.insertLine(cursor.row+1, " " * (ws+4), true)
+                    textArea.insertLine(cursor.row+1, last)
+                    textArea.insertLine(cursor.row+1, " " * (ws+4))
+                    textArea.update(true)
                     textArea.setListener(cursor)
                     cursor.move(cursor.row+1, ws+4+1)
                     cursor.render(textArea.references)
@@ -125,10 +128,11 @@ impl handleKeys(self, event) for Editor {
                 }
             }
 
-            textArea.updateLine(cursor.row, line.substring(1, cursor.col-1), true)
+            textArea.updateLine(cursor.row, line.substring(1, cursor.col-1))
             @newLine = line.substring(cursor.col, line.size())
             newLine = " " * ws + newLine
-            textArea.insertLine(cursor.row+1, newLine, true)
+            textArea.insertLine(cursor.row+1, newLine)
+            textArea.update(true)
             textArea.setListener(cursor)
             cursor.move(cursor.row+1, ws+1)
             cursor.render(textArea.references)
@@ -155,7 +159,8 @@ impl handleKeys(self, event) for Editor {
         case "Tab" {
             @line = content.get(cursor.row)
             cursor.detach()
-            textArea.updateLine(cursor.row, line.insert(cursor.col, " " * 4), true)
+            textArea.updateLine(cursor.row, line.insert(cursor.col, " " * 4))
+            textArea.update(true)
             textArea.setListener(cursor)
             cursor.shift(null, 4)
             cursor.render(textArea.references)
@@ -170,7 +175,8 @@ impl handleKeys(self, event) for Editor {
             each pair of PAIRED_SYMBOLS {
                 if key == pair.get(1) {
                     @line = content.get(cursor.row)
-                    textArea.updateLine(cursor.row, line.insert(cursor.col, pair), true)
+                    textArea.updateLine(cursor.row, line.insert(cursor.col, pair))
+                    textArea.update(true)
                     textArea.setListener(cursor)
                     cursor.shift(null, 1)
                     cursor.render(textArea.references)
@@ -181,7 +187,8 @@ impl handleKeys(self, event) for Editor {
             # type character
             @line = content.get(cursor.row).insert(cursor.col, key)
             cursor.detach()
-            textArea.updateLine(cursor.row, line, true)
+            textArea.updateLine(cursor.row, line)
+            textArea.update(true)
             textArea.setListener(cursor)
             self.cursor.shift(null, 1)
             self.cursor.render(textArea.references)
@@ -218,6 +225,7 @@ impl bind(self) for Editor {
     })
     func callback(text) {
         $textArea.removeStyle("border")
+        text = Editor.cleanText(text)
         self.setContent(text)
     }
 }
@@ -254,28 +262,44 @@ func createEditor(root, text) {
     return out
 }
 
+func createOutput(root, text) {
+    @out = list()
+    @inout = dict(
+       print: func(message) out.add(message),
+       input: func(_) {},
+       flush: func() {}
+    )
+    @code = bindings.Execute(text, inout)
+    @output = Output(root)
+    if code /= 0 {
+        output.setText("> non-zero exit: \(code)")
+    } elif out.size() == 0 {
+        output.setText("> empty output")
+    } else {
+        output.setText(out.join("\n"))
+    }
+    return output
+}
+
 func createSnippet(root, text, options) {
+    text = Editor.cleanText(text)
     root.setClass("\(root.class()) editor editor-snippet")
-    @editor = Editor(root)
-    if options.have("run") and options.have("run") {
-        # try running it
-        @out = list()
-        @inout = dict(
-           print: func(message) out.add(message),
-           input: func(message) null,
-           flush: func() {}
-        )
-        @code = bindings.Execute(text, inout)
-        if code == 0 and out.size() > 0 {
-             @output = Output(root)
-             output.setText(out.join("\n"))
-        }
+
+    @editor = null
+    if not options.have("out") {
+        editor = Editor(root)
     }
 
-    text = Editor.cleanText(text)
-    if options.have("raw") and options.have("raw") {
-          editor.textArea.content = text.split("\n")
-          editor.textArea.update(null, false)
+    if options.have("run") {
+        @output = createOutput(root, text)
+    } elif options.have("out") {
+        @output = createOutput(root, text)
+        return null
+    }
+
+    if options.have("raw") {
+        editor.textArea.content = text.split("\n")
+        editor.textArea.update(false)
     } else {
         editor.setContent(text)
     }

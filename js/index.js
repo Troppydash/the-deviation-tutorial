@@ -1024,7 +1024,7 @@ define("compiler/lexing/index", ["require", "exports", "compiler/lexing/token", 
                                 this.advancePointer();
                                 this.addBuffer(token_1.NewPlToken(token_1.PlTokenType.ADD, '+', this.currentFileInfo(2)));
                                 this.addBuffer(token_1.NewPlToken(token_1.PlTokenType.VARIABLE, 'Str', info_2.NewEmptyFileInfo('')));
-                                this.addBuffer(token_1.NewPlToken(token_1.PlTokenType.LPAREN, '(', this.currentFileInfo(1)));
+                                this.addBuffer(token_1.NewPlToken(token_1.PlTokenType.LPAREN, '(', info_2.NewEmptyFileInfo('')));
                                 const lparen = this.currentFileInfo(2);
                                 let lparens = 0;
                                 while (true) {
@@ -1070,8 +1070,8 @@ define("compiler/lexing/index", ["require", "exports", "compiler/lexing/token", 
                     }
                     this.advancePointer();
                 }
-                const hasMore = this.buffer.length - lastBuffer > 1;
-                this.addBuffer(token_1.NewPlToken(token_1.PlTokenType.STR, content.substring(0, content.length - 1), this.currentFileInfo(this.currentCol - lastCol + (hasMore ? 0 : 1))));
+                const hasMore = this.buffer.length - lastBuffer > 0;
+                this.addBuffer(token_1.NewPlToken(token_1.PlTokenType.STR, content.substring(0, content.length - 1), this.currentFileInfo(this.currentCol - lastCol + 1)));
                 if (hasMore) {
                     this.addBuffer(token_1.NewPlToken(token_1.PlTokenType.RPAREN, ")", this.currentFileInfo(1)));
                     return token_1.NewPlToken(token_1.PlTokenType.LPAREN, "(", info);
@@ -3950,7 +3950,7 @@ define("vm/machine/native/converter", ["require", "exports", "vm/machine/stuff",
         function jsToType(js) {
             return stuff_3.NewPlStuff(stuff_3.PlStuffType.Type, {
                 type: js.value.type,
-                format: js.value.value
+                format: js.value.format
             });
         }
         function jsToRaw(js) {
@@ -3995,15 +3995,19 @@ define("vm/machine/native/converter", ["require", "exports", "vm/machine/stuff",
                     return out;
                 }
                 case stuff_3.PlStuffType.NFunc: {
-                    return (...args) => {
+                    const fn = ((...args) => {
                         return PlToJs(object.value.native(...args.map(a => JsToPl(a, sm))), sm);
-                    };
+                    });
+                    fn.data = object.value;
+                    return fn;
                 }
                 case stuff_3.PlStuffType.Func: {
                     const callPointer = sm.pointer;
-                    return protectPlangCall((...args) => {
+                    const fn = protectPlangCall((...args) => {
                         return PlToJs(sm.runFunction(object, args.map(arg => JsToPl(arg, sm)), callPointer), sm);
                     }, sm);
+                    fn.data = object.value;
+                    return fn;
                 }
                 case stuff_3.PlStuffType.Raw:
                     return rawToJs(object);
@@ -4026,14 +4030,13 @@ define("vm/machine/native/converter", ["require", "exports", "vm/machine/stuff",
                     return stuff_3.PlStuffFalse;
                 }
                 case "function": {
-                    return stuff_3.NewPlStuff(stuff_3.PlStuffType.NFunc, {
-                        native: (...args) => {
+                    let additional = {};
+                    if (object.data) {
+                        additional = object.data;
+                    }
+                    return stuff_3.NewPlStuff(stuff_3.PlStuffType.NFunc, Object.assign({ native: (...args) => {
                             return JsToPl(object.bind(sm)(...args.map(a => PlToJs(a, sm))), sm);
-                        },
-                        name: "native",
-                        parameters: [stuff_3.PlStuffTypeRest],
-                        self: null,
-                    });
+                        }, name: "native", parameters: [stuff_3.PlStuffTypeRest], self: null }, additional));
                 }
                 case "undefined": {
                     return stuff_3.PlStuffNull;
@@ -6158,27 +6161,20 @@ define("problem/interactive/debugger", ["require", "exports", "vm/machine/native
     }
     exports.IACTDebugger = IACTDebugger;
 });
-define("vm/machine/native/modules/debug", ["require", "exports", "vm/machine/native/helpers", "vm/machine/native/converter", "vm/emitter/printer", "problem/interactive/index", "problem/interactive/debugger", "inout/index"], function (require, exports, helpers_11, converter_7, printer_2, index_2, debugger_1, inout_5) {
+define("vm/machine/native/modules/debug", ["require", "exports", "vm/machine/native/helpers", "vm/machine/native/converter", "vm/emitter/printer", "problem/interactive/index", "problem/interactive/debugger", "inout/index", "vm/machine/stuff"], function (require, exports, helpers_11, converter_7, printer_2, index_2, debugger_1, inout_5, stuff_16) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    exports.jsdebug = void 0;
-    const debug = {
+    exports.debug = void 0;
+    var PlToDebugString = converter_7.PlConverter.PlToDebugString;
+    exports.debug = {
         stack: helpers_11.GenerateGuardedFunction("stack", [], function () {
-            return this.stack.map(i => converter_7.PlConverter.PlToJs(i, this));
+            return stuff_16.NewPlStuff(stuff_16.PlStuffType.List, [...this.stack]);
         }),
         closure: helpers_11.GenerateGuardedFunction("closure", [], function () {
-            const values = {};
-            for (const [key, value] of Object.entries(this.closureFrame.values)) {
-                values[key] = converter_7.PlConverter.PlToJs(value, this);
-            }
-            return values;
+            return stuff_16.NewPlStuff(stuff_16.PlStuffType.Dict, Object.assign({}, this.closureFrame.values));
         }),
         locals: helpers_11.GenerateGuardedFunction("locals", [], function () {
-            const values = {};
-            for (const [key, value] of Object.entries(this.stackFrame.values)) {
-                values[key] = converter_7.PlConverter.PlToJs(value, this);
-            }
-            return values;
+            return stuff_16.NewPlStuff(stuff_16.PlStuffType.Dict, Object.assign({}, this.stackFrame.values));
         }),
         globals: helpers_11.GenerateGuardedFunction("globals", [], function () {
             let out = {};
@@ -6186,37 +6182,39 @@ define("vm/machine/native/modules/debug", ["require", "exports", "vm/machine/nat
             do {
                 const values = {};
                 for (const [key, value] of Object.entries(sf.values)) {
-                    values[key] = converter_7.PlConverter.PlToJs(value, this);
+                    values[key] = value;
                 }
                 out = Object.assign(Object.assign({}, out), values);
             } while ((sf = sf.outer) != null);
-            return out;
+            return stuff_16.NewPlStuff(stuff_16.PlStuffType.Dict, out);
         }),
         program: helpers_11.GenerateGuardedFunction("program", [], function () {
-            return printer_2.PlProgramToString(this.program, false).split('\n');
+            return stuff_16.NewPlStuff(stuff_16.PlStuffType.List, printer_2.PlProgramToString(this.program, false)
+                .split('\n')
+                .map(s => stuff_16.NewPlStuff(stuff_16.PlStuffType.Str, s)));
         }),
         pointer: helpers_11.GenerateGuardedFunction("pointer", [], function () {
-            return this.pointer;
+            return stuff_16.NewPlStuff(stuff_16.PlStuffType.Num, this.pointer);
         }),
+        format: helpers_11.GenerateGuardedFunction("format", [stuff_16.PlStuffTypeAny], function (item) {
+            return stuff_16.NewPlStuff(stuff_16.PlStuffType.Str, PlToDebugString(item));
+        })
     };
     if (inout_5.isNode) {
-        debug['debugger'] = helpers_11.GenerateGuardedFunction("debugger", [], function () {
+        exports.debug['debugger'] = helpers_11.GenerateGuardedFunction("debugger", [], function () {
             if (this.inout.options['mode'] == 'release' || this.inout.options["run"] == "repl")
                 return null;
             index_2.IACTSync(debugger_1.IACTDebugger(this));
             throw "debugger";
         });
     }
-    exports.jsdebug = {
-        debug
-    };
 });
-define("vm/machine/native/impl/func", ["require", "exports", "vm/machine/scrambler", "vm/machine/stuff", "vm/machine/native/helpers", "vm/machine/native/converter"], function (require, exports, scrambler_9, stuff_16, helpers_12, converter_8) {
+define("vm/machine/native/impl/func", ["require", "exports", "vm/machine/scrambler", "vm/machine/stuff", "vm/machine/native/helpers", "vm/machine/native/converter"], function (require, exports, scrambler_9, stuff_17, helpers_12, converter_8) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.func = void 0;
     exports.func = {
-        [scrambler_9.ScrambleType("call", stuff_16.PlStuffType.Func)]: helpers_12.GenerateGuardedTypeFunction("call", [stuff_16.PlStuffType.List], function (self, args) {
+        [scrambler_9.ScrambleType("call", stuff_17.PlStuffType.Func)]: helpers_12.GenerateGuardedTypeFunction("call", [stuff_17.PlStuffType.List], function (self, args) {
             try {
                 return this.runFunction(self, args.value);
             }
@@ -6224,32 +6222,48 @@ define("vm/machine/native/impl/func", ["require", "exports", "vm/machine/scrambl
                 throw null;
             }
         }),
-        [scrambler_9.ScrambleType("bind", stuff_16.PlStuffType.Func)]: helpers_12.GenerateGuardedTypeFunction("bind", [stuff_16.PlStuffTypeAny], function (self, newSelf) {
+        [scrambler_9.ScrambleType("bind", stuff_17.PlStuffType.Func)]: helpers_12.GenerateGuardedTypeFunction("bind", [stuff_17.PlStuffTypeAny], function (self, newSelf) {
             const newFunc = converter_8.PlActions.PlCopy(self);
             newFunc.value.self = newSelf;
             newFunc.value.name += '.bind';
             return newFunc;
         }),
-        [scrambler_9.ScrambleType("arity", stuff_16.PlStuffType.Func)]: helpers_12.GenerateGuardedTypeFunction("arity", [], function (self) {
-            return stuff_16.NewPlStuff(stuff_16.PlStuffType.Num, (self.value).parameters.length);
+        [scrambler_9.ScrambleType("arity", stuff_17.PlStuffType.Func)]: helpers_12.GenerateGuardedTypeFunction("arity", [], function (self) {
+            return stuff_17.NewPlStuff(stuff_17.PlStuffType.Num, (self.value).parameters.length);
         }),
-        [scrambler_9.ScrambleType("name", stuff_16.PlStuffType.Func)]: helpers_12.GenerateGuardedTypeFunction("name", [], (self) => {
-            if (self.type == stuff_16.PlStuffType.Func) {
-                return stuff_16.NewPlStuff(stuff_16.PlStuffType.Str, self.value.closure.trace.name);
+        [scrambler_9.ScrambleType("name", stuff_17.PlStuffType.Func)]: helpers_12.GenerateGuardedTypeFunction("name", [], (self) => {
+            if (self.type == stuff_17.PlStuffType.Func) {
+                return stuff_17.NewPlStuff(stuff_17.PlStuffType.Str, self.value.closure.trace.name);
             }
-            return stuff_16.NewPlStuff(stuff_16.PlStuffType.Str, self.value.name);
+            return stuff_17.NewPlStuff(stuff_17.PlStuffType.Str, self.value.name);
+        }),
+        [scrambler_9.ScrambleType("params", stuff_17.PlStuffType.Func)]: helpers_12.GenerateGuardedTypeFunction("params", [], function (self) {
+            if (self.type == stuff_17.PlStuffType.Func) {
+                return stuff_17.NewPlStuff(stuff_17.PlStuffType.List, self.value.parameters.map(stuff => stuff_17.NewPlStuff(stuff_17.PlStuffType.Str, stuff)));
+            }
+            else if (self.type == stuff_17.PlStuffType.NFunc) {
+                return stuff_17.NewPlStuff(stuff_17.PlStuffType.List, self.value.parameters.map(stuffType => {
+                    if (typeof stuffType == "string")
+                        return stuff_17.NewPlStuff(stuff_17.PlStuffType.Str, stuffType);
+                    else
+                        return stuff_17.NewPlStuff(stuff_17.PlStuffType.Str, stuff_17.PlStuffTypeToString(stuffType));
+                }));
+            }
         })
     };
 });
 define("vm/machine/native/index", ["require", "exports", "vm/machine/native/operators", "vm/machine/native/impl/list", "vm/machine/native/impl/all", "vm/machine/native/impl/str", "vm/machine/native/impl/dict", "vm/machine/native/special", "vm/machine/native/modules/maths", "vm/machine/native/impl/num", "vm/machine/native/modules/time", "vm/machine/native/modules/random", "vm/machine/native/modules/debug", "vm/machine/native/impl/func"], function (require, exports, operators_2, list_1, all_1, str_1, dict_1, special_1, maths_1, num_1, time_1, random_1, debug_3, func_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    exports.jsModules = exports.natives = exports.jsNatives = void 0;
+    exports.modules = exports.jsModules = exports.natives = exports.jsNatives = void 0;
     exports.jsNatives = Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign({}, operators_2.jsOperators), dict_1.jsDict), list_1.jsList), str_1.jsStr), num_1.jsNum), special_1.jsSpecial);
     exports.natives = Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign({}, operators_2.operators), str_1.str), list_1.list), dict_1.dict), func_1.func), all_1.all), special_1.special);
-    exports.jsModules = Object.assign(Object.assign(Object.assign(Object.assign({}, maths_1.maths), time_1.time), random_1.random), debug_3.jsdebug);
+    exports.jsModules = Object.assign(Object.assign(Object.assign({}, maths_1.maths), time_1.time), random_1.random);
+    exports.modules = {
+        debug: debug_3.debug,
+    };
 });
-define("vm/machine/index", ["require", "exports", "vm/emitter/bytecode", "problem/problem", "vm/machine/stuff", "vm/machine/native/index", "vm/machine/scrambler", "vm/machine/native/converter", "problem/trace", "vm/machine/memory"], function (require, exports, bytecode_4, problem_5, stuff_17, native_1, scrambler_10, converter_9, trace_1, memory_1) {
+define("vm/machine/index", ["require", "exports", "vm/emitter/bytecode", "problem/problem", "vm/machine/stuff", "vm/machine/native/index", "vm/machine/scrambler", "vm/machine/native/converter", "problem/trace", "vm/machine/memory"], function (require, exports, bytecode_4, problem_5, stuff_18, native_1, scrambler_10, converter_9, trace_1, memory_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.PlStackMachine = exports.CTOR_NAME = void 0;
@@ -6306,7 +6320,7 @@ define("vm/machine/index", ["require", "exports", "vm/emitter/bytecode", "proble
         findFunction(name, target) {
             let value = this.findValue(scrambler_10.ScrambleImpl(name, target));
             if (value == null) {
-                if (target.type == stuff_17.PlStuffType.Inst) {
+                if (target.type == stuff_18.PlStuffType.Inst) {
                     value = this.findValue(scrambler_10.ScrambleType(name, target.type));
                     if (value == null)
                         return null;
@@ -6315,7 +6329,7 @@ define("vm/machine/index", ["require", "exports", "vm/emitter/bytecode", "proble
                     return null;
                 }
             }
-            if (value.type == stuff_17.PlStuffType.NFunc || value.type == stuff_17.PlStuffType.Func) {
+            if (value.type == stuff_18.PlStuffType.NFunc || value.type == stuff_18.PlStuffType.Func) {
                 return value;
             }
             return null;
@@ -6326,24 +6340,23 @@ define("vm/machine/index", ["require", "exports", "vm/emitter/bytecode", "proble
             let hasRest = false;
             for (let i = 0; i < parameters.length; i++) {
                 const param = parameters[i];
-                if (param == stuff_17.PlStuffTypeRest) {
+                if (param == stuff_18.PlStuffTypeRest) {
                     hasRest = true;
                     break;
                 }
                 if (i >= args.length) {
                     break;
                 }
-                if (param == stuff_17.PlStuffTypeAny) {
+                if (param == stuff_18.PlStuffTypeAny) {
                     continue;
                 }
-                if (stuff_17.PlStuffTypeToString(args[i].type) != stuff_17.PlStuffTypeToString(param)) {
-                    this.newProblem("RE0018", this.pointer, stuff_17.PlStuffTypeToString(param), "" + (i + 1), stuff_17.PlStuffTypeToString(args[i].type));
+                if (stuff_18.PlStuffTypeToString(args[i].type) != stuff_18.PlStuffTypeToString(param)) {
+                    this.newProblem("RE0018", this.pointer, stuff_18.PlStuffTypeToString(param), "" + (i + 1), stuff_18.PlStuffTypeToString(args[i].type));
                     throw null;
                 }
             }
             if (!hasRest) {
                 if (args.length != value.parameters.length) {
-                    debugger;
                     this.newProblem("RE0006", this.pointer, '' + value.parameters.length, '' + args.length);
                     throw null;
                 }
@@ -6380,7 +6393,7 @@ define("vm/machine/index", ["require", "exports", "vm/emitter/bytecode", "proble
                 this.pointer = callPointer;
             }
             const callDebug = this.getCallDebug(this.pointer);
-            if (func.type == stuff_17.PlStuffType.NFunc) {
+            if (func.type == stuff_18.PlStuffType.NFunc) {
                 try {
                     const out = this.runNFunction(func, args, callDebug);
                     this.pointer = oldPointer;
@@ -6435,7 +6448,7 @@ define("vm/machine/index", ["require", "exports", "vm/emitter/bytecode", "proble
                 this.createValue(parameters[i], args[i]);
             }
             this.createValue(value.closure.trace.name, func);
-            this.pushStack(stuff_17.NewPlStuff(stuff_17.PlStuffType.Num, this.pointer));
+            this.pushStack(stuff_18.NewPlStuff(stuff_18.PlStuffType.Num, this.pointer));
             this.pointer = value.index;
             return true;
         }
@@ -6459,8 +6472,8 @@ define("vm/machine/index", ["require", "exports", "vm/emitter/bytecode", "proble
                     continue;
                 }
                 switch (guard.type) {
-                    case stuff_17.PlStuffType.NFunc:
-                    case stuff_17.PlStuffType.Func: {
+                    case stuff_18.PlStuffType.NFunc:
+                    case stuff_18.PlStuffType.Func: {
                         let supplied = [];
                         const need = guard.value.parameters.length;
                         switch (need) {
@@ -6478,10 +6491,10 @@ define("vm/machine/index", ["require", "exports", "vm/emitter/bytecode", "proble
                             default:
                                 supplied = [func, args[i], i];
                                 for (let i = 3; i < need; i++)
-                                    supplied.push(stuff_17.PlStuffNull);
+                                    supplied.push(stuff_18.PlStuffNull);
                                 break;
                         }
-                        if (guard.type == stuff_17.PlStuffType.Func) {
+                        if (guard.type == stuff_18.PlStuffType.Func) {
                             supplied = this.verifyGuards(guard, supplied);
                             if (supplied == null)
                                 return null;
@@ -6501,7 +6514,7 @@ define("vm/machine/index", ["require", "exports", "vm/emitter/bytecode", "proble
         }
         callSomething(func, args, callDebug) {
             switch (func.type) {
-                case stuff_17.PlStuffType.Type: {
+                case stuff_18.PlStuffType.Type: {
                     const value = func.value;
                     if (value.format == null) {
                         const out = this.convertBasicTypes(value, args);
@@ -6513,9 +6526,9 @@ define("vm/machine/index", ["require", "exports", "vm/emitter/bytecode", "proble
                     }
                     const obj = {};
                     for (const member of value.format) {
-                        obj[member] = stuff_17.PlStuffNull;
+                        obj[member] = stuff_18.PlStuffNull;
                     }
-                    const instance = stuff_17.NewPlStuff(stuff_17.PlStuffType.Inst, {
+                    const instance = stuff_18.NewPlStuff(stuff_18.PlStuffType.Inst, {
                         type: value.type,
                         value: obj
                     });
@@ -6544,7 +6557,7 @@ define("vm/machine/index", ["require", "exports", "vm/emitter/bytecode", "proble
                     this.pushStack(instance);
                     break;
                 }
-                case stuff_17.PlStuffType.NFunc: {
+                case stuff_18.PlStuffType.NFunc: {
                     try {
                         this.pushStack(this.runNFunction(func, args, callDebug));
                     }
@@ -6553,7 +6566,7 @@ define("vm/machine/index", ["require", "exports", "vm/emitter/bytecode", "proble
                     }
                     break;
                 }
-                case stuff_17.PlStuffType.Func: {
+                case stuff_18.PlStuffType.Func: {
                     const value = func.value;
                     args = this.verifyGuards(func, args);
                     if (args == null) {
@@ -6581,12 +6594,12 @@ define("vm/machine/index", ["require", "exports", "vm/emitter/bytecode", "proble
         seedFrame(args) {
             for (const [key, entry] of Object.entries(native_1.jsNatives)) {
                 const fn = Object.assign(Object.assign({}, entry), { native: converter_9.PlConverter.JsToPl(entry.native, this).value.native });
-                this.stackFrame.createValue(key, stuff_17.NewPlStuff(stuff_17.PlStuffType.NFunc, fn));
+                this.stackFrame.createValue(key, stuff_18.NewPlStuff(stuff_18.PlStuffType.NFunc, fn));
                 this.standard.push(key);
             }
             for (const [key, entry] of Object.entries(native_1.natives)) {
                 const fn = Object.assign(Object.assign({}, entry), { native: entry.native.bind(this) });
-                this.stackFrame.createValue(key, stuff_17.NewPlStuff(stuff_17.PlStuffType.NFunc, fn));
+                this.stackFrame.createValue(key, stuff_18.NewPlStuff(stuff_18.PlStuffType.NFunc, fn));
                 this.standard.push(key);
             }
             for (const [moduleName, module] of Object.entries(native_1.jsModules)) {
@@ -6597,9 +6610,18 @@ define("vm/machine/index", ["require", "exports", "vm/emitter/bytecode", "proble
                         continue;
                     }
                     const fn = Object.assign(Object.assign({}, method), { native: converter_9.PlConverter.JsToPl(method.native, this).value.native });
-                    obj[methodName] = stuff_17.NewPlStuff(stuff_17.PlStuffType.NFunc, fn);
+                    obj[methodName] = stuff_18.NewPlStuff(stuff_18.PlStuffType.NFunc, fn);
                 }
-                this.stackFrame.createValue(moduleName, stuff_17.NewPlStuff(stuff_17.PlStuffType.Dict, obj));
+                this.stackFrame.createValue(moduleName, stuff_18.NewPlStuff(stuff_18.PlStuffType.Dict, obj));
+                this.standard.push(moduleName);
+            }
+            for (const [moduleName, module] of Object.entries(native_1.modules)) {
+                const obj = {};
+                for (const [methodName, method] of Object.entries(module)) {
+                    const fn = Object.assign(Object.assign({}, method), { native: method.native.bind(this) });
+                    obj[methodName] = stuff_18.NewPlStuff(stuff_18.PlStuffType.NFunc, fn);
+                }
+                this.stackFrame.createValue(moduleName, stuff_18.NewPlStuff(stuff_18.PlStuffType.Dict, obj));
                 this.standard.push(moduleName);
             }
             this.stackFrame.createValue("process", converter_9.PlConverter.JsToPl({
@@ -6610,16 +6632,16 @@ define("vm/machine/index", ["require", "exports", "vm/emitter/bytecode", "proble
                 }
             }, this));
             this.standard.push('process');
-            for (const key of stuff_17.PlStuffTypes) {
+            for (const key of stuff_18.PlStuffTypes) {
                 if (key == "Inst")
                     continue;
-                const value = stuff_17.NewPlStuff(stuff_17.PlStuffType.Type, {
+                const value = stuff_18.NewPlStuff(stuff_18.PlStuffType.Type, {
                     type: key,
                     format: null
                 });
                 this.stackFrame.createValue(key, value);
                 const newName = scrambler_10.ScrambleName("new", key);
-                this.stackFrame.createValue(newName, stuff_17.NewPlStuff(stuff_17.PlStuffType.NFunc, {
+                this.stackFrame.createValue(newName, stuff_18.NewPlStuff(stuff_18.PlStuffType.NFunc, {
                     native: (...args) => {
                         const out = this.convertBasicTypes(value.value, args);
                         if (out == null)
@@ -6628,7 +6650,7 @@ define("vm/machine/index", ["require", "exports", "vm/emitter/bytecode", "proble
                     },
                     name: "new",
                     self: null,
-                    parameters: [stuff_17.PlStuffTypeAny],
+                    parameters: [stuff_18.PlStuffTypeAny],
                     guards: [null],
                 }));
                 this.standard.push(key, newName);
@@ -6736,7 +6758,7 @@ define("vm/machine/index", ["require", "exports", "vm/emitter/bytecode", "proble
                 let lastPointer = this.pointer - 1;
                 while (this.pointer < program.length) {
                     if (this.returnCode != null)
-                        return stuff_17.NewPlStuff(stuff_17.PlStuffType.Num, this.returnCode);
+                        return stuff_18.NewPlStuff(stuff_18.PlStuffType.Num, this.returnCode);
                     if (until) {
                         if (until(lastPointer, this.pointer)) {
                             return null;
@@ -6750,22 +6772,22 @@ define("vm/machine/index", ["require", "exports", "vm/emitter/bytecode", "proble
                             break;
                         }
                         case bytecode_4.PlBytecodeType.DEFNUM: {
-                            this.pushStack(stuff_17.NewPlStuff(stuff_17.PlStuffType.Num, +byte.value));
+                            this.pushStack(stuff_18.NewPlStuff(stuff_18.PlStuffType.Num, +byte.value));
                             break;
                         }
                         case bytecode_4.PlBytecodeType.DEFSTR: {
-                            this.pushStack(stuff_17.NewPlStuff(stuff_17.PlStuffType.Str, byte.value));
+                            this.pushStack(stuff_18.NewPlStuff(stuff_18.PlStuffType.Str, byte.value));
                             break;
                         }
                         case bytecode_4.PlBytecodeType.DEFBOL: {
                             if (byte.value == '1')
-                                this.pushStack(stuff_17.PlStuffTrue);
+                                this.pushStack(stuff_18.PlStuffTrue);
                             else
-                                this.pushStack(stuff_17.PlStuffFalse);
+                                this.pushStack(stuff_18.PlStuffFalse);
                             break;
                         }
                         case bytecode_4.PlBytecodeType.DEFNUL: {
-                            this.pushStack(stuff_17.PlStuffNull);
+                            this.pushStack(stuff_18.PlStuffNull);
                             break;
                         }
                         case bytecode_4.PlBytecodeType.DEFTYP: {
@@ -6774,7 +6796,7 @@ define("vm/machine/index", ["require", "exports", "vm/emitter/bytecode", "proble
                             const members = [];
                             for (let i = 0; i < arity.value; i++)
                                 members.push(this.popStack().value);
-                            this.pushStack(stuff_17.NewPlStuff(stuff_17.PlStuffType.Type, {
+                            this.pushStack(stuff_18.NewPlStuff(stuff_18.PlStuffType.Type, {
                                 type: name.value,
                                 format: members
                             }));
@@ -6799,7 +6821,7 @@ define("vm/machine/index", ["require", "exports", "vm/emitter/bytecode", "proble
                             for (let i = 0; i < length.value; ++i) {
                                 values.push(converter_9.PlActions.PlCopy(this.popStack()));
                             }
-                            this.pushStack(stuff_17.NewPlStuff(stuff_17.PlStuffType.List, values));
+                            this.pushStack(stuff_18.NewPlStuff(stuff_18.PlStuffType.List, values));
                             break;
                         }
                         case bytecode_4.PlBytecodeType.DEFDIC: {
@@ -6809,7 +6831,7 @@ define("vm/machine/index", ["require", "exports", "vm/emitter/bytecode", "proble
                                 const key = this.popStack();
                                 object[key.value] = converter_9.PlActions.PlCopy(this.popStack());
                             }
-                            this.pushStack(stuff_17.NewPlStuff(stuff_17.PlStuffType.Dict, object));
+                            this.pushStack(stuff_18.NewPlStuff(stuff_18.PlStuffType.Dict, object));
                             break;
                         }
                         case bytecode_4.PlBytecodeType.DEFFUN: {
@@ -6830,7 +6852,7 @@ define("vm/machine/index", ["require", "exports", "vm/emitter/bytecode", "proble
                                 if (guard == null) {
                                     return this.newProblem("RE0019", this.pointer - 2 - arity.value - i, name);
                                 }
-                                if (guard.type == stuff_17.PlStuffType.Type) {
+                                if (guard.type == stuff_18.PlStuffType.Type) {
                                     const gtf = this.findValue(scrambler_10.ScrambleName("guard", guard.value.type));
                                     if (gtf != null) {
                                         guard = gtf;
@@ -6838,16 +6860,16 @@ define("vm/machine/index", ["require", "exports", "vm/emitter/bytecode", "proble
                                     else {
                                         const type = guard;
                                         const sm = this;
-                                        guard = stuff_17.NewPlStuff(stuff_17.PlStuffType.NFunc, {
+                                        guard = stuff_18.NewPlStuff(stuff_18.PlStuffType.NFunc, {
                                             native: (fn, arg, i) => {
-                                                if (stuff_17.PlStuffGetType(arg) != type.value.type) {
-                                                    this.newProblem("RE0018", sm.pointer, type.value.type, '' + (i + 1), stuff_17.PlStuffGetType(arg));
+                                                if (stuff_18.PlStuffGetType(arg) != type.value.type) {
+                                                    this.newProblem("RE0018", sm.pointer, type.value.type, '' + (i + 1), stuff_18.PlStuffGetType(arg));
                                                     throw null;
                                                 }
                                                 return arg;
                                             },
                                             name: "guard",
-                                            parameters: [stuff_17.PlStuffTypeAny, stuff_17.PlStuffTypeAny, stuff_17.PlStuffTypeAny],
+                                            parameters: [stuff_18.PlStuffTypeAny, stuff_18.PlStuffTypeAny, stuff_18.PlStuffTypeAny],
                                             self: null
                                         });
                                     }
@@ -6855,7 +6877,7 @@ define("vm/machine/index", ["require", "exports", "vm/emitter/bytecode", "proble
                                 guards.push(guard);
                             }
                             const length = +byte.value;
-                            this.pushStack(stuff_17.NewPlStuff(stuff_17.PlStuffType.Func, {
+                            this.pushStack(stuff_18.NewPlStuff(stuff_18.PlStuffType.Func, {
                                 closure: new memory_1.PlStackFrame(this.stackFrame, trace_1.NewPlTraceFrame("|closure|")),
                                 parameters,
                                 index: this.pointer,
@@ -6867,16 +6889,16 @@ define("vm/machine/index", ["require", "exports", "vm/emitter/bytecode", "proble
                         }
                         case bytecode_4.PlBytecodeType.DOOINC: {
                             const value = this.popStack();
-                            if (value.type == stuff_17.PlStuffType.Num) {
+                            if (value.type == stuff_18.PlStuffType.Num) {
                                 value.value++;
                                 this.pushStack(value);
                                 break;
                             }
-                            return this.newProblem("RE0015", this.pointer, stuff_17.PlStuffGetType(value));
+                            return this.newProblem("RE0015", this.pointer, stuff_18.PlStuffGetType(value));
                         }
                         case bytecode_4.PlBytecodeType.DOODEC: {
                             const value = this.popStack();
-                            if (value.type == stuff_17.PlStuffType.Num) {
+                            if (value.type == stuff_18.PlStuffType.Num) {
                                 value.value--;
                                 this.pushStack(value);
                                 break;
@@ -6884,23 +6906,23 @@ define("vm/machine/index", ["require", "exports", "vm/emitter/bytecode", "proble
                             return this.newProblem({
                                 "*": "RE0015",
                                 "ASTCondition": "RE0011",
-                            }, this.pointer, stuff_17.PlStuffGetType(value));
+                            }, this.pointer, stuff_18.PlStuffGetType(value));
                         }
                         case bytecode_4.PlBytecodeType.DONEGT: {
                             const value = this.popStack();
-                            if (value.type == stuff_17.PlStuffType.Num) {
-                                this.pushStack(stuff_17.NewPlStuff(stuff_17.PlStuffType.Num, -value.value));
+                            if (value.type == stuff_18.PlStuffType.Num) {
+                                this.pushStack(stuff_18.NewPlStuff(stuff_18.PlStuffType.Num, -value.value));
                                 break;
                             }
-                            return this.newProblem("RE0005", this.pointer, stuff_17.PlStuffGetType(value));
+                            return this.newProblem("RE0005", this.pointer, stuff_18.PlStuffGetType(value));
                         }
                         case bytecode_4.PlBytecodeType.DOLNOT: {
                             const value = this.popStack();
-                            if (value.type == stuff_17.PlStuffType.Bool) {
-                                this.pushStack(value.value == true ? stuff_17.PlStuffFalse : stuff_17.PlStuffTrue);
+                            if (value.type == stuff_18.PlStuffType.Bool) {
+                                this.pushStack(value.value == true ? stuff_18.PlStuffFalse : stuff_18.PlStuffTrue);
                                 break;
                             }
-                            return this.newProblem("RE0017", this.pointer, stuff_17.PlStuffGetType(value));
+                            return this.newProblem("RE0017", this.pointer, stuff_18.PlStuffGetType(value));
                         }
                         case bytecode_4.PlBytecodeType.DOCRET:
                         case bytecode_4.PlBytecodeType.DOASGN: {
@@ -6908,7 +6930,7 @@ define("vm/machine/index", ["require", "exports", "vm/emitter/bytecode", "proble
                             const target = this.popStack();
                             const value = converter_9.PlActions.PlCopy(this.popStack());
                             if (target == null) {
-                                if (value.type == stuff_17.PlStuffType.Func) {
+                                if (value.type == stuff_18.PlStuffType.Func) {
                                     const content = value.value;
                                     content.closure.setTraceName(name.value);
                                 }
@@ -6921,14 +6943,14 @@ define("vm/machine/index", ["require", "exports", "vm/emitter/bytecode", "proble
                                 this.pushStack(value);
                                 break;
                             }
-                            if (target.type == stuff_17.PlStuffType.Dict) {
+                            if (target.type == stuff_18.PlStuffType.Dict) {
                                 if (name.value in target.value) {
                                     target.value[name.value] = value;
                                     this.pushStack(value);
                                     break;
                                 }
                             }
-                            else if (target.type == stuff_17.PlStuffType.List) {
+                            else if (target.type == stuff_18.PlStuffType.List) {
                                 let parsed = Number.parseFloat('' + name.value);
                                 if (!Number.isNaN(parsed)) {
                                     parsed--;
@@ -6939,14 +6961,14 @@ define("vm/machine/index", ["require", "exports", "vm/emitter/bytecode", "proble
                                     }
                                 }
                             }
-                            else if (target.type == stuff_17.PlStuffType.Inst) {
+                            else if (target.type == stuff_18.PlStuffType.Inst) {
                                 if (name.value in target.value.value) {
                                     target.value.value[name.value] = value;
                                     this.pushStack(value);
                                     break;
                                 }
                             }
-                            return this.newProblem("RE0013", this.pointer, stuff_17.PlStuffGetType(target));
+                            return this.newProblem("RE0013", this.pointer, stuff_18.PlStuffGetType(target));
                         }
                         case bytecode_4.PlBytecodeType.DOFDCL: {
                             const name = byte.value;
@@ -6954,7 +6976,7 @@ define("vm/machine/index", ["require", "exports", "vm/emitter/bytecode", "proble
                             const target = this.popStack();
                             const fn = this.findFunction(name, target);
                             if (fn == null) {
-                                return this.newProblem("RE0004", this.pointer, name, stuff_17.PlStuffGetType(target));
+                                return this.newProblem("RE0004", this.pointer, name, stuff_18.PlStuffGetType(target));
                             }
                             const args = [target];
                             const remain = (+arity.value) - 1;
@@ -6969,8 +6991,8 @@ define("vm/machine/index", ["require", "exports", "vm/emitter/bytecode", "proble
                         }
                         case bytecode_4.PlBytecodeType.DOCALL: {
                             const func = this.popStack();
-                            if (func.type != stuff_17.PlStuffType.Func && func.type != stuff_17.PlStuffType.NFunc && func.type != stuff_17.PlStuffType.Type) {
-                                return this.newProblem("RE0008", this.pointer, stuff_17.PlStuffGetType(func));
+                            if (func.type != stuff_18.PlStuffType.Func && func.type != stuff_18.PlStuffType.NFunc && func.type != stuff_18.PlStuffType.Type) {
+                                return this.newProblem("RE0008", this.pointer, stuff_18.PlStuffGetType(func));
                             }
                             const arity = this.popStack();
                             const args = [];
@@ -6990,14 +7012,14 @@ define("vm/machine/index", ["require", "exports", "vm/emitter/bytecode", "proble
                             const bKey = this.popStack();
                             const bTarget = this.popStack();
                             const name = bKey.value;
-                            if (bTarget.type == stuff_17.PlStuffType.Dict) {
+                            if (bTarget.type == stuff_18.PlStuffType.Dict) {
                                 const value = bTarget.value[name];
                                 if (value) {
                                     this.pushStack(value);
                                     break;
                                 }
                             }
-                            else if (bTarget.type == stuff_17.PlStuffType.List) {
+                            else if (bTarget.type == stuff_18.PlStuffType.List) {
                                 let parsed = Number.parseFloat('' + name);
                                 if (!Number.isNaN(parsed)) {
                                     parsed--;
@@ -7008,7 +7030,7 @@ define("vm/machine/index", ["require", "exports", "vm/emitter/bytecode", "proble
                                     }
                                 }
                             }
-                            else if (bTarget.type == stuff_17.PlStuffType.Inst) {
+                            else if (bTarget.type == stuff_18.PlStuffType.Inst) {
                                 const instance = bTarget.value;
                                 let value = instance.value[name];
                                 if (value) {
@@ -7016,11 +7038,14 @@ define("vm/machine/index", ["require", "exports", "vm/emitter/bytecode", "proble
                                     break;
                                 }
                             }
-                            else if (bTarget.type == stuff_17.PlStuffType.Type) {
+                            else if (bTarget.type == stuff_18.PlStuffType.Type) {
                                 const value = this.findValue(scrambler_10.ScrambleName(name, bTarget.value.type));
                                 if (value != null) {
                                     const fn = converter_9.PlActions.PlCopy(value);
-                                    fn.value.self = null;
+                                    if (value.type == stuff_18.PlStuffType.NFunc)
+                                        fn.value.self = bTarget;
+                                    else
+                                        fn.value.self = null;
                                     this.pushStack(fn);
                                     break;
                                 }
@@ -7032,7 +7057,7 @@ define("vm/machine/index", ["require", "exports", "vm/emitter/bytecode", "proble
                                 this.pushStack(fn);
                                 break;
                             }
-                            if (bTarget.type == stuff_17.PlStuffType.Inst) {
+                            if (bTarget.type == stuff_18.PlStuffType.Inst) {
                                 const value = this.findValue(scrambler_10.ScrambleType(name, bTarget.type));
                                 if (value != null) {
                                     const fn = converter_9.PlActions.PlCopy(value);
@@ -7044,7 +7069,7 @@ define("vm/machine/index", ["require", "exports", "vm/emitter/bytecode", "proble
                             return this.newProblem({
                                 "*": "RE0012",
                                 "ASTCondition": "RE0016",
-                            }, this.pointer, name, stuff_17.PlStuffGetType(bTarget));
+                            }, this.pointer, name, stuff_18.PlStuffGetType(bTarget));
                         }
                         case bytecode_4.PlBytecodeType.DORETN: {
                             const retVal = this.popStack();
@@ -7089,43 +7114,43 @@ define("vm/machine/index", ["require", "exports", "vm/emitter/bytecode", "proble
                         }
                         case bytecode_4.PlBytecodeType.JMPIFT: {
                             const peek = this.peekStack();
-                            if (peek.type == stuff_17.PlStuffType.Bool) {
+                            if (peek.type == stuff_18.PlStuffType.Bool) {
                                 if (peek.value == true) {
                                     this.pointer += +byte.value;
                                 }
                                 break;
                             }
-                            return this.newProblem(JUMP_ERRORS, this.pointer, stuff_17.PlStuffGetType(peek));
+                            return this.newProblem(JUMP_ERRORS, this.pointer, stuff_18.PlStuffGetType(peek));
                         }
                         case bytecode_4.PlBytecodeType.JMPIFF: {
                             const peek = this.peekStack();
-                            if (peek.type == stuff_17.PlStuffType.Bool) {
+                            if (peek.type == stuff_18.PlStuffType.Bool) {
                                 if (peek.value == false) {
                                     this.pointer += +byte.value;
                                 }
                                 break;
                             }
-                            return this.newProblem(JUMP_ERRORS, this.pointer, stuff_17.PlStuffGetType(peek));
+                            return this.newProblem(JUMP_ERRORS, this.pointer, stuff_18.PlStuffGetType(peek));
                         }
                         case bytecode_4.PlBytecodeType.JMPICT: {
                             const peek = this.popStack();
-                            if (peek.type == stuff_17.PlStuffType.Bool) {
+                            if (peek.type == stuff_18.PlStuffType.Bool) {
                                 if (peek.value == true) {
                                     this.pointer += +byte.value;
                                 }
                                 break;
                             }
-                            return this.newProblem(JUMP_ERRORS, this.pointer, stuff_17.PlStuffGetType(peek));
+                            return this.newProblem(JUMP_ERRORS, this.pointer, stuff_18.PlStuffGetType(peek));
                         }
                         case bytecode_4.PlBytecodeType.JMPICF: {
                             const peek = this.popStack();
-                            if (peek.type == stuff_17.PlStuffType.Bool) {
+                            if (peek.type == stuff_18.PlStuffType.Bool) {
                                 if (peek.value == false) {
                                     this.pointer += +byte.value;
                                 }
                                 break;
                             }
-                            return this.newProblem(JUMP_ERRORS, this.pointer, stuff_17.PlStuffGetType(peek));
+                            return this.newProblem(JUMP_ERRORS, this.pointer, stuff_18.PlStuffGetType(peek));
                         }
                         default: {
                             return this.newProblem("RE0001", this.pointer, bytecode_4.BytecodeTypeToString(byte.type));
@@ -7133,7 +7158,7 @@ define("vm/machine/index", ["require", "exports", "vm/emitter/bytecode", "proble
                     }
                     ++this.pointer;
                 }
-                return stuff_17.PlStuffNull;
+                return stuff_18.PlStuffNull;
             }
             catch (e) {
                 debugger;

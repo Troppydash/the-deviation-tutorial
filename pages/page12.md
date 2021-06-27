@@ -13,7 +13,7 @@ If you want to learn and try more of Javascript, pressing F12 on a website will 
 If you want more challenges or even projects, here are some:
 
 ### Challenges
-1. [The Mandelbrot Set](https://en.wikipedia.org/wiki/Mandelbrot_set) is a beautiful image from mathematics. Make a program in Devia that draws the set - use `.` and ` ` to represent fill and empty coordinates.
+1. [The Mandelbrot Set](https://en.wikipedia.org/wiki/Mandelbrot_set) is a beautiful image from mathematics. Make a program in Devia that draws the set - use dots and spaces to represent fill and empty coordinates.
 2. An online game revolves around finding English words by a substring. Write a program to cheat this process by letting the computer do it.
 3. This website is created using Devia in browser. Try this yourselves and make some interesting websites!
 

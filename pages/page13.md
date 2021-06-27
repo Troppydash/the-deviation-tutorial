@@ -4,7 +4,70 @@
 
 # Syntax & Playground
 
-Language BNF Syntax:
+### List of Type Functions
+```
+#!/out
+func tfun(t) {
+    all = debug.globals()
+    out = list()
+    each fn, name of all {
+        if fn.type() /= Func {
+            continue
+        }
+        parts = name.split("@")
+        if Str(t) == parts.1 {
+            out.add("\(parts.1).\(parts.2)(\(fn.params().join(", ")))")
+        }
+    }
+    return out.sort().join("\n")
+}
+
+types = list(Num, Str, Bool, List, Dict, Func)
+each t of types {
+    say("[\(t)]")
+    say(tfun(t))
+    say(" ")
+}
+```
+
+### Global Modules
+```
+#!/out
+all = debug.globals()
+out = list()
+each module, name of all {
+    if module.type() /= Dict {
+        continue
+    }
+    say("[\(name)]")
+    each value, key of module {
+        if value.is(Func) {
+            say("\(name).\(key)(\(value.params().join(", ")))")
+        } else {
+            say("\(name).\(key) = \(value.type())")
+        }
+    }
+    say(" ")
+}
+```
+
+### Special Function
+```
+#!/out
+all = debug.globals()
+each fn, name of all {
+    if fn.type() /= Func {
+        continue
+    }
+    if name.have("@") {
+        continue
+    }
+    say("\(name)(\(fn.params().join(", ")))")
+}
+```
+
+
+### Language BNF Syntax:
 ```
 #!/raw
 program     ::= statement* EOF

@@ -95,7 +95,7 @@ body {
 }
 
 .editor-textarea > div > span.re-tab {
-    border-left: 1px solid #797979;
+    border-left: 1px solid #505050;
 }
 
 .editor-textarea > div.selected {
@@ -107,7 +107,7 @@ body {
     top: 0.2rem;
     padding: 0;
     width: 0;
-    margin-left: 1px;
+    margin-left: 2px;
     border-left: 2px solid white;
 
     animation: blink 1.25s step-end 0.25s infinite;
@@ -129,6 +129,7 @@ body {
 
 .editor.editor-snippet .editor-output {
     height: auto;
+    max-height: 400px;
 }
 
 .editor-textarea > div > span.error {
