@@ -97,8 +97,8 @@ impl handleKeys(self, event) for Editor {
                 cursor.shift(0, -1)
             }
             textArea.update(true)
-            cursor.render(textArea.references)
             textArea.setListener(cursor)
+            cursor.render(textArea.references)
         }
         case "Enter" {
             @line = content.get(cursor.row)

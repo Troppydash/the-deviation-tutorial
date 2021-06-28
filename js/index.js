@@ -5221,27 +5221,47 @@ define("vm/machine/native/special", ["require", "exports", "vm/machine/native/co
                     return self;
                 }),
                 listen: helpers_6.GenerateGuardedFunction("listen", [stuff_10.PlStuffType.Str, stuff_10.PlStuffType.Func], function (event, callback) {
-                    for (const node of result) {
-                        node.addEventListener(event.value, (event) => {
-                            const e = {
-                                preventDefault: () => event.preventDefault(),
-                                "#raw": {
-                                    _version: VERSION,
-                                    type: "Raw",
-                                    value: event
-                                },
+                    let f;
+                    result[0].addEventListener(event.value, f = (event) => {
+                        const e = {
+                            preventDefault: () => event.preventDefault(),
+                            "#raw": {
+                                _version: VERSION,
+                                type: "Raw",
+                                value: event
+                            },
+                        };
+                        if (event.currentTarget) {
+                            e.location = {
+                                x: event.clientX - event.currentTarget.getBoundingClientRect().left,
+                                y: event.clientY - event.currentTarget.getBoundingClientRect().top,
                             };
-                            if (event.currentTarget) {
-                                e.location = {
-                                    x: event.clientX - event.currentTarget.getBoundingClientRect().left,
-                                    y: event.clientY - event.currentTarget.getBoundingClientRect().top,
-                                };
-                            }
-                            if (event.key) {
-                                e.key = event.key;
-                            }
-                            converter_5.PlConverter.PlToJs(callback, sm)(e);
-                        });
+                        }
+                        if (event.key) {
+                            e.key = event.key;
+                        }
+                        converter_5.PlConverter.PlToJs(callback, sm)(e);
+                    });
+                    const node = result[0];
+                    if (node.data == null) {
+                        node.data = {};
+                    }
+                    const arr = node.data[event.value];
+                    if (arr != null) {
+                        result[0].removeEventListener(event.value, arr);
+                    }
+                    node.data[event.value] = f;
+                    return self;
+                }),
+                unlisten: helpers_6.GenerateGuardedFunction("unlisten", [stuff_10.PlStuffType.Str], function (event) {
+                    const node = result[0];
+                    if (node.data == null) {
+                        node.data = {};
+                    }
+                    const arr = node.data[event.value];
+                    if (arr != null) {
+                        result[0].removeEventListener(event.value, arr);
+                        node.data[event.value] = undefined;
                     }
                     return self;
                 }),

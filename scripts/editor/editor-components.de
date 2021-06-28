@@ -373,6 +373,7 @@ impl update(self, highlight: Bool) for TextArea {
 
 impl setListener(self, cursor) for TextArea {
     each line, row of self.references {
+        line.unlisten("click")
         line.listen("click", handleClick(self, cursor, row))
     }
 }
