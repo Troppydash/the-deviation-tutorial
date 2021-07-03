@@ -5,6 +5,8 @@ say("Hello World!")
 
 # The Deviation Tutorial
 
+### <u>simplified version coming very soon</u>!
+
 This tutorial will guide you through the concepts of
 the Deviation Programming Language. Knowing Javascript or Python is helpful,
 but having a programming background is not required to follow through the tutorial.
