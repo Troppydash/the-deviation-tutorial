@@ -37,35 +37,10 @@
 <script type="application/devia" src="scripts/controller.de"></script>
 
 
-<!--RequireJs and Showdownjs-->
+<!-- Showdownjs-->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/showdown/1.9.1/showdown.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js"></script>
-<script>
-    // showdown markdown parser bindings
-    const converter = new showdown.Converter({
-        omitExtraWLInCodeBlocks: true,
-        openLinksInNewWindow: true,
-    });
-    // katex bindings
 
-    window.data = {
-        exports: {
-            markdown: {
-                makeHtml: text => converter.makeHtml(text)
-            },
-            katex: {
-                render: element => renderMathInElement(element["#raw"].value.get().result[0], {
-                    delimiters: [
-                        {left: '$$', right: '$$', display: true},
-                        {left: '$', right: '$', display: false},
-                    ]
-                })
-            }
-        }
-    };
-</script>
-
-<!--THESE ARE ALL FOR LOADING THE PROGRAMMING LANGUAGE-->
+<!-- Devia Model -->
 <div id="pl-model"
      style="display:none;top:0;left:0;height: 100vh;width: 100vw;position: absolute;z-index: 99;align-items: center;justify-content: center;background-color: rgba(0, 0, 0, 0.8)"
      onclick="closeModel()">
@@ -73,38 +48,84 @@
          style="background-color: #393939;color:#cecece;font-family: monospace;font-size: 1.25rem;padding: 0.75rem;overflow: auto"
          onclick="event.stopPropagation()"></div>
 </div>
-<script>const model = document.getElementById("pl-model"), body = document.getElementById("pl-model-body");
+<script>
+    const model = (function () {
+        const model = document.getElementById("pl-model")
+        const body = document.getElementById("pl-model-body");
 
-function openModel(e) {
-    body.innerHTML = e, model.style.display = "flex"
-}
+        function openModel(e) {
+            body.innerHTML = e;
+            model.style.display = "flex";
+        }
 
-function modelOpen() {
-    return "flex" === model.style.display
-}
+        function modelOpen() {
+            return "flex" === model.style.display;
+        }
 
-function closeModel() {
-    model.style.display = "none", buffer.length > 0 && openModel(buffer.shift())
-}
+        model.addEventListener('click', closeModel);
+        function closeModel() {
+            model.style.display = "none";
+            buffer.length > 0 && openModel(buffer.shift());
+        }
 
-function replace(e, n, o) {
-    return e.split(n).join(o)
-}
+        function replace(e, n, o) {
+            return e.split(n).join(o);
+        }
 
-let content = [], buffer = [];
-window.extern = {
-    print(e) {
-        content.push(`<span>${replace(replace(e, " ", "&nbsp;"), "<span\\", "<span ")}</span>`)
-    }, flush() {
-        if (0 === content.length) return;
-        const e = content.join("<br/>");
-        buffer.push(replace(e, "\n", "<br/>")), content = [], modelOpen() || openModel(buffer.shift())
-    }
-};</script>
-<script src="js/index.js"></script>
-<script>require(["inout/otherInout", "browser/exports"], function (o, r) {
-    window.data = {exports: {...window.data.exports, ...r}}
-});</script>
-<script>require(['browser/index']);</script>
+        let content = [], buffer = [];
+
+        function print(e) {
+            content.push(`<span>${replace(replace(e, " ", "&nbsp;"), "<span\\", "<span ")}</span>`)
+        }
+
+        function flush() {
+            if (0 === content.length) return;
+            const e = content.join("<br/>");
+            buffer.push(replace(e, "\n", "<br/>"));
+            content = [];
+            modelOpen() || openModel(buffer.shift());
+        }
+
+        return {
+            print,
+            flush
+        }
+    }());
+
+</script>
+
+<!-- Importing Interpreter -->
+<script>var global = globalThis;</script>
+<script src="https://cdn.jsdelivr.net/npm/plang-interpreter@latest/out/deviation.js"></script>
+<script>
+    // change inout
+    deviation.inout.ChangeInout(model);
+
+    // inject default stuff
+    deviation.browser.Inject();
+
+    // inject external stuff
+    const converter = new showdown.Converter({
+        omitExtraWLInCodeBlocks: true,
+        openLinksInNewWindow: true,
+    });
+    const external = {
+        markdown: {
+            makeHtml: text => converter.makeHtml(text)
+        },
+        katex: {
+            render: element => renderMathInElement(element["#raw"].value.get().result[0], {
+                delimiters: [
+                    {left: '$$', right: '$$', display: true},
+                    {left: '$', right: '$', display: false},
+                ]
+            })
+        }
+    };
+    deviation.browser.Inject(external);
+
+    // execute script tags
+    deviation.browser.ExecuteBrowserTags();
+</script>
 </body>
 </html>
